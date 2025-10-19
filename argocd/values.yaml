@@ -11,9 +11,9 @@ argo-cd:
         - /
       pathType: Prefix
       tls: []
-    annotations:
-      nginx.ingress.kubernetes.io/ssl-redirect: "false"
-      nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+      annotations:
+        nginx.ingress.kubernetes.io/ssl-redirect: "false"
+        nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 
     service:
       type: LoadBalancer
