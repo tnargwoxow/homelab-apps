@@ -1,66 +1,66 @@
 # Demo-ready ArgoCD Helm values
 # Use only for testing (not secure!)
+argo-cd:
+  server:
+    ingress:
+      enabled: true
+      ingressClassName: nginx
+      hosts:
+        - argocd.192.168.0.77.sslip.io
+      paths:
+        - /
+      pathType: Prefix
+      tls: []
 
-server:
-  ingress:
+    service:
+      type: LoadBalancer
+
+  configs:
+    cm:
+      admin.enabled: "true"
+      accounts.anonymous.enabled: "true"
+      accounts.anonymous.capabilities: "read-only"
+      url: "http://argocd.192.168.0.77.sslip.io"
+
+  # Redis must be enabled and reachable for repo-server to start correctly
+  redis:
     enabled: true
-    ingressClassName: nginx
-    hosts:
-      - argocd.192.168.0.77.sslip.io
-    paths:
-      - /
-    pathType: Prefix
-    tls: []
+    image:
+      repository: redis
+      tag: "7.2"
+    auth:
+      enabled: false # disable password for quick test (fixes missing secret crash)
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
 
-  service:
-    type: LoadBalancer
+  repoServer:
+    # ensures it runs as a Deployment, not a job
+    replicas: 1
+    autoscaling:
+      enabled: false
+    serviceAccount:
+      create: true
+    # these lines make sure it doesn't exit immediately
+    extraArgs:
+      - --redis
+      - "argocd-redis:6379"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
 
-configs:
-  cm:
-    admin.enabled: "true"
-    accounts.anonymous.enabled: "true"
-    accounts.anonymous.capabilities: "read-only"
-    url: "http://argocd.192.168.0.77.sslip.io"
-
-# Redis must be enabled and reachable for repo-server to start correctly
-redis:
-  enabled: true
-  image:
-    repository: redis
-    tag: "7.2"
-  auth:
-    enabled: false # disable password for quick test (fixes missing secret crash)
-  resources:
-    requests:
-      cpu: 20m
-      memory: 64Mi
-
-repoServer:
-  # ensures it runs as a Deployment, not a job
-  replicas: 1
-  autoscaling:
-    enabled: false
-  serviceAccount:
-    create: true
-  # these lines make sure it doesn't exit immediately
-  extraArgs:
-    - --redis
-    - "argocd-redis:6379"
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
-
-controller:
-  resources:
-    requests:
-      cpu: 50m
-      memory: 128Mi
+  controller:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
 
 
-dex:
-  enabled: true
-  resources:
-    requests:
-      cpu: 20m
-      memory: 64Mi
+  dex:
+    enabled: true
+    resources:
+      requests:
+        cpu: 20m
+        memory: 64Mi
