@@ -6,7 +6,7 @@ server:
     enabled: true
     ingressClassName: nginx
     hosts:
-      - argocd.10.102.79.180.sslip.io
+      - argocd.192.168.0.222.sslip.io
     paths:
       - /
     pathType: Prefix
@@ -20,7 +20,7 @@ configs:
     admin.enabled: "true"
     accounts.anonymous.enabled: "true"
     accounts.anonymous.capabilities: "read-only"
-    url: "http://argocd.10.102.79.180.sslip.io"
+    url: "http://argocd.192.168.0.222.sslip.io"
 
 # Redis must be enabled and reachable for repo-server to start correctly
 redis:
