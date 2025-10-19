@@ -6,12 +6,14 @@ metadata:
 spec:
   project: default
   source:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
+    repoURL: https://github.com/tnargwoxow/homelab-apps.git
     targetRevision: HEAD
-    path: guestbook
+    path: argocd
   destination:
     server: https://kubernetes.default.svc
-    namespace: default
+    namespace: argocd
+  helm:
+    valuesFile: values.yaml
 
   syncPolicy:
     automated:
