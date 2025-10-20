@@ -21,8 +21,8 @@ spec:
             name: nginx
             enabled: true
             default: true
-            admissionWebhooks: #TODO: Remove this once I've got the apps working
-              enabled: false
+            # admissionWebhooks: #TODO: Remove this once I've got the apps working
+            #   enabled: false
         defaultBackend:
           enabled: true
   destination:
