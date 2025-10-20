@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-  - host: argocd.192.168.0.77.sslip.io
+  - host: guestbook.192.168.0.77.sslip.io
     http:
       paths:
       - path: /
