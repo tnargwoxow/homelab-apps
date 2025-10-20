@@ -1,6 +1,8 @@
 # Demo-ready ArgoCD Helm values
 # Use only for testing (not secure!)
 argo-cd:
+  global:
+    domain: argocd.192.168.0.77.sslip.io
   server:
     ingress:
       enabled: true
@@ -12,6 +14,7 @@ argo-cd:
       pathType: Prefix
       tls: []
       annotations:
+        nginx.ingress.kubernetes.io/ssl-passthrough: "false"
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
         nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 
@@ -23,7 +26,7 @@ argo-cd:
       admin.enabled: "true"
       accounts.anonymous.enabled: "true"
       accounts.anonymous.capabilities: "read-only"
-      url: "https://argocd.192.168.0.77.sslip.io"
+      url: "http://argocd.192.168.0.77.sslip.io"
 
   # Redis must be enabled and reachable for repo-server to start correctly
   redis:
