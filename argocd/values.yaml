@@ -14,7 +14,7 @@ argo-cd:
       pathType: Prefix
       tls: []
       annotations:
-        nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+        # nginx.ingress.kubernetes.io/ssl-passthrough: "false"
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
         nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
 
