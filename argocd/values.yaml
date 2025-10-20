@@ -1,8 +1,8 @@
 # Demo-ready ArgoCD Helm values
 # Use only for testing (not secure!)
 argo-cd:
-  global:
-    domain: argocd.192.168.0.77.sslip.io
+  # global:
+  #   domain: argocd.192.168.0.77.sslip.io
   server:
     ingress:
       enabled: true
