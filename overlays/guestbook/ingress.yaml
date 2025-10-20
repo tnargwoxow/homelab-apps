@@ -17,8 +17,7 @@ spec:
           service:
             name: guestbook-ui
             port:
-              number: 30080
+              number: 80
 
 
 
-     
