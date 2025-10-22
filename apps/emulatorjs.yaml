@@ -1,0 +1,63 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: emulatorjs
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: emulatorjs
+  source:
+    repoURL: https://charts.truecharts.org/
+    chart: emulatorjs
+    targetRevision: 11.0.2     # check TrueCharts for the latest version
+    helm:
+      values: |
+        image:
+          repository: ghcr.io/linuxserver/emulatorjs
+          tag: latest
+
+        persistence:
+          enabled: true
+          data:
+            size: 10Gi
+            storageClass: "local-path"    # ✅ Proxmox (k3s) default
+            accessModes:
+              - ReadWriteOnce
+
+        service:
+          type: ClusterIP
+          port: 80
+
+        ingress:
+          enabled: true
+          hosts:
+            - host: emulator.example.com
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls:
+            - hosts:
+                - emulator.example.com
+              secretName: emulatorjs-tls
+          annotations:
+            kubernetes.io/ingress.class: nginx
+            nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+
+        timezone: "Europe/Berlin"
+
+        resources:
+          requests:
+            cpu: "100m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
