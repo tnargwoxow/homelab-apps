@@ -9,20 +9,22 @@ spec:
     server: https://kubernetes.default.svc
     namespace: emulatorjs
   source:
-    repoURL: https://charts.truecharts.org/
     chart: emulatorjs
-    targetRevision: 11.0.2     # check TrueCharts for the latest version
+    repoURL: oci://oci.trueforge.org/truecharts
+    targetRevision: 11.0.2       # ✅ Check TrueCharts for latest version
     helm:
       values: |
         image:
           repository: ghcr.io/linuxserver/emulatorjs
           tag: latest
+          pullPolicy: IfNotPresent
 
         persistence:
           enabled: true
           data:
+            enabled: true
             size: 10Gi
-            storageClass: "local-path"    # ✅ Proxmox (k3s) default
+            storageClass: "local-path"    # ✅ Works for Proxmox/k3s
             accessModes:
               - ReadWriteOnce
 
