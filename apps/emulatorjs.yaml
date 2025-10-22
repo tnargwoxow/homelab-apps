@@ -10,7 +10,7 @@ spec:
     namespace: emulatorjs
   source:
     chart: emulatorjs
-    repoURL: oci://oci.trueforge.org/truecharts
+    repoURL: oci://oci.trueforge.org/truecharts/emulatorjs
     targetRevision: 12.8.0       # ✅ Check TrueCharts for latest version
     helm:
       values: |
