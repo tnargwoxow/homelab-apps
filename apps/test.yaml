@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: testthung
+  namespace: argocd
+spec:
+  project:
+    chart: my-guestbook 
+    repoURL: https://jakuboskera.github.io/charts
+    targetRevision: HEAD
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
