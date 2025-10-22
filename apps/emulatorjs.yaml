@@ -11,7 +11,7 @@ spec:
   source:
     chart: emulatorjs
     repoURL: oci://oci.trueforge.org/truecharts
-    targetRevision: 11.0.2       # ✅ Check TrueCharts for latest version
+    targetRevision: 12.8.0       # ✅ Check TrueCharts for latest version
     helm:
       values: |
         image:
