@@ -8,6 +8,7 @@ spec:
   source:
     chart: guestbook 
     repoURL: https://jakuboskera.github.io/charts
+    targetRevision: latest
   destination:
     server: https://kubernetes.default.svc
     namespace: default
