@@ -4,7 +4,8 @@ metadata:
   name: testthung
   namespace: argocd
 spec:
-  project:
+  project: default
+  source:
     chart: my-guestbook 
     repoURL: https://jakuboskera.github.io/charts
     targetRevision: HEAD
