@@ -21,13 +21,18 @@ spec:
           tag: latest
 
         persistence:
-          enabled: true
           data:
             enabled: true
+            mountPath: /data
             size: 10Gi
             storageClass: "local-path"
-            accessModes:
-              - ReadWriteOnce
+            accessMode: ReadWriteOnce
+          config:
+            enabled: true
+            mountPath: /config
+            size: 1Gi
+            storageClass: "local-path"
+            accessMode: ReadWriteOnce
 
         ingress:
           main:
