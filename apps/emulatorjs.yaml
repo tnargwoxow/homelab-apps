@@ -9,7 +9,7 @@ spec:
     server: https://kubernetes.default.svc
     namespace: emulatorjs
   source:
-    repoURL: https://charts.truecharts.org/
+    repoURL: oci://oci.trueforge.org/truecharts/emulatorjs
     chart: emulatorjs
     targetRevision: 12.8.0
     helm:
