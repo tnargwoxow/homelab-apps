@@ -1,0 +1,22 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: romm
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tnargwoxow/homelab-apps.git
+    targetRevision: HEAD
+    path: overlays/romm
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: romm
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+

@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: romm
+  labels:
+    app: romm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: romm
+  template:
+    metadata:
+      labels:
+        app: romm
+    spec:
+      containers:
+      - name: romm
+        image: rommapp/romm:latest
+        ports:
+        - containerPort: 8080
+          name: http
+        env:
+        - name: DB_HOST
+          value: "romm-db"
+        - name: DB_NAME
+          value: "romm"
+        - name: DB_USER
+          value: "romm-user"
+        - name: DB_PASSWD
+          value: "romm-password"  # Change this in production!
+        - name: ROMM_AUTH_SECRET_KEY
+          value: "your-secret-key-here"  # Change this in production!
+        volumeMounts:
+        - name: romm-library
+          mountPath: /romm/library
+        - name: romm-resources
+          mountPath: /romm/resources
+        - name: romm-config
+          mountPath: /romm/config
+      volumes:
+      - name: romm-library
+        emptyDir: {}  # Replace with PVC for production
+      - name: romm-resources
+        emptyDir: {}  # Replace with PVC for production
+      - name: romm-config
+        emptyDir: {}  # Replace with PVC for production
+

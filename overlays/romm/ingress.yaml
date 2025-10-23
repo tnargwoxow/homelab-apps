@@ -1,0 +1,24 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: romm
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/proxy-body-size: "500m"  # Allow large ROM uploads
+spec:
+  rules:
+  - host: romm.192.168.0.77.sslip.io  # Update with your actual host
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: romm
+            port:
+              number: 80
+  tls:
+  - hosts:
+    - romm.192.168.0.77.sslip.io
+    secretName: romm-tls
+
