@@ -17,8 +17,9 @@ spec:
       skipDependencies: false       # ✅ ensure "common" chart loads
       values: |
         image:
-          repository: ghcr.io/linuxserver/emulatorjs
+          repository: lscr.io/linuxserver/emulatorjs
           tag: latest
+          pullPolicy: Always
 
         persistence:
           data:
