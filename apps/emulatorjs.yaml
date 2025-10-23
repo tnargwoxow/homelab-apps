@@ -17,7 +17,7 @@ spec:
       skipDependencies: false       # ✅ ensure "common" chart loads
       values: |
         image:
-          repository: linuxserver/emulatorjs
+          repository: docker.io/linuxserver/emulatorjs
           tag: latest
           pullPolicy: Always
 
