@@ -30,6 +30,20 @@ spec:
 
           # -- Custom annotations to put on the ingress resource
           annotations: {}
+        pms:
+          configExistingClaim: ""
+          # Set to very small size
+          configStorage: 100Mi
+          storageClassName: null
+        
+        # Add emptyDir volume instead
+        extraVolumes:
+          - name: config
+            emptyDir: {}
+        
+        extraVolumeMounts:
+          - name: config
+            mountPath: /config
           
   destination:
     server: https://kubernetes.default.svc
