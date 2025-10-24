@@ -19,6 +19,29 @@ spec:
                 paths:
                   - path: /
                     pathType: Prefix
+        
+        probes:
+          startup:
+            enabled: true
+            spec:
+              initialDelaySeconds: 30
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 30
+          liveness:
+            enabled: true
+            spec:
+              initialDelaySeconds: 60
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 5
+          readiness:
+            enabled: true
+            spec:
+              initialDelaySeconds: 30
+              periodSeconds: 10
+              timeoutSeconds: 5
+              failureThreshold: 3
   destination:
     server: https://kubernetes.default.svc
     namespace: default
