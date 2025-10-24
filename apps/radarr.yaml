@@ -12,12 +12,13 @@ spec:
     helm:
       values: |
         ingress:
-          enabled: true
-          hosts:
-            - host: radarr.192.168.0.77.sslip.io
-              paths:
-                - path: /
-                  pathType: Prefix
+          main:
+            enabled: true
+            hosts:
+              - host: radarr.192.168.0.77.sslip.io
+                paths:
+                  - path: /
+                    pathType: Prefix
   destination:
     server: https://kubernetes.default.svc
     namespace: default
