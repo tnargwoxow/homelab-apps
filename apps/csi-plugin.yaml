@@ -29,9 +29,9 @@ spec:
               storageclass.kubernetes.io/is-default-class: "true"
         # Let it run on the control plane
         controller:
-          tolerations:
-            - key: node-role.kubernetes.io/control-plane
-              operator: Exists
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
         node:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
