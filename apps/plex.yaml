@@ -38,8 +38,8 @@ spec:
         
         
         # extraVolumeMounts:
-        #   - name: config
-        #     mountPath: /config
+        #   - name: I think here is where I would mount the volume
+        #     mountPath: /movies
           
   destination:
     server: https://kubernetes.default.svc
