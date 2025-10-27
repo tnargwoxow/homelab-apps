@@ -18,10 +18,10 @@ spec:
             operator: Exists
         ingress:
           # -- Specify if an ingress resource for the pms server should be created or not
-          enabled: false
+          enabled: true
 
           # -- The ingress class that should be used
-          ingressClassName: "ingress-nginx"
+          ingressClassName: "nginx"
 
           # -- The url to use for the ingress reverse proxy to point at this pms instance
           url: "https://plex.192.168.0.77.sslip.io"
