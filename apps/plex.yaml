@@ -13,7 +13,7 @@ spec:
       values: |
         ingress:
           # -- Specify if an ingress resource for the pms server should be created or not
-          enabled: true
+          enabled: false
 
           # -- The ingress class that should be used
           ingressClassName: "ingress-nginx"
