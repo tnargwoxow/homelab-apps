@@ -8,7 +8,7 @@ spec:
   source:
     repoURL: oci://ghcr.io/sergelogvinov/charts/proxmox-csi-plugin
     chart: proxmox-csi-plugin
-    # targetRevision: 1.24.1         # pick a version that works, or use “latest” carefully
+    targetRevision: 0.3.16         # pick a version that works, or use “latest” carefully
     helm:
       values: |
         # proxmox-csi.yaml
