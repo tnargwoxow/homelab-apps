@@ -18,12 +18,7 @@ spec:
               insecure: true
               token_id: "kubernetes-csi@pve!csi" 
               token_secret: "67e608b1-8147-4fed-b873-35795240673d"
-              region: homelab
-
-              insecure: false
-              token_id: "kubernetes-csi@pve!csi"
-              token_secret: "secret"
-              region: Region-2
+              region: Homelab
 
         # Define the storage classes
         storageClass:
