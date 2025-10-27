@@ -36,10 +36,6 @@ spec:
           configStorage: 100Mi
           storageClassName: proxmox-csi
         
-        # Add emptyDir volume instead
-        extraVolumes:
-          - name: config
-            emptyDir: {}
         
         extraVolumeMounts:
           - name: config
