@@ -36,7 +36,7 @@ spec:
               storageclass.kubernetes.io/is-default-class: "true"
   destination:
     server: https://kubernetes.default.svc
-    namespace: csi-plugin
+    namespace: csi-proxmox
   syncPolicy:
     automated:
       prune: true
