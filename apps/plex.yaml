@@ -13,7 +13,7 @@ spec:
       values: |
         ingress:
           # -- Specify if an ingress resource for the pms server should be created or not
-          enabled: false
+          enabled: true
 
           # -- The ingress class that should be used
           ingressClassName: "ingress-nginx"
@@ -34,7 +34,7 @@ spec:
           configExistingClaim: ""
           # Set to very small size
           configStorage: 100Mi
-          storageClassName: null
+          storageClassName: proxmox-csi
         
         # Add emptyDir volume instead
         extraVolumes:
