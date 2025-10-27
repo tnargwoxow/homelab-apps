@@ -20,17 +20,14 @@ spec:
               token_secret: "67e608b1-8147-4fed-b873-35795240673d"
               region: Homelab
 
-        # Define the storage classes
+        # Let it run on the control plane
         tolerations:
           - key: node-role.kubernetes.io/control-plane
             operator: Exists
-
         node:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
-          nodeSelector:
-            node-role.kubernetes.io/control-plane: ""
   destination:
     server: https://kubernetes.default.svc
     namespace: csi-proxmox
