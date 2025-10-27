@@ -33,7 +33,7 @@ spec:
         pms:
           configExistingClaim: ""
           # Set to very small size
-          configStorage: 100Mi
+          configStorage: 2Gi
           storageClassName: proxmox-csi
         
         
