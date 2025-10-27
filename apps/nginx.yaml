@@ -23,6 +23,19 @@ spec:
             default: true
           admissionWebhooks:
             enabled: true
+            patch:
+                enabled: true
+                tolerations:
+                  - key: node-role.kubernetes.io/control-plane
+                    operator: Exists
+
+
+
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+            - key: node-role.kubernetes.io/master
+              operator: Exists
         defaultBackend:
           enabled: true
   destination:
