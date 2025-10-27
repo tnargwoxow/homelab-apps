@@ -31,23 +31,17 @@ spec:
               storageclass.kubernetes.io/is-default-class: "true"
         controller:
           tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
-            - key: "node-role.kubernetes.io/master"  # legacy
-              operator: "Exists"
-              effect: "NoSchedule"
-          replicas: 1
-
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ""
 
         node:
           tolerations:
-            - key: "node-role.kubernetes.io/control-plane"
-              operator: "Exists"
-              effect: "NoSchedule"
-            - key: "node-role.kubernetes.io/master"
-              operator: "Exists"
-              effect: "NoSchedule"
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+          nodeSelector:
+            node-role.kubernetes.io/control-plane: ""
   destination:
     server: https://kubernetes.default.svc
     namespace: csi-proxmox
