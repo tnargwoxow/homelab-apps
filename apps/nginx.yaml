@@ -22,7 +22,7 @@ spec:
             enabled: true
             default: true
           admissionWebhooks:
-            enabled: false
+            enabled: true
         defaultBackend:
           enabled: true
   destination:
