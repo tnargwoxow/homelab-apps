@@ -13,6 +13,8 @@ spec:
     targetRevision: 3.2.3
     helm:
       values: |
+        crds:
+          install: false
         admissionController:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
