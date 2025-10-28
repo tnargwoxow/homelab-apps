@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/tnargwoxow/homelab-apps.git
     targetRevision: HEAD
-    path: argobuild/bases/metallb-config
+    path: bases/metallb-config
   destination:
     server: https://kubernetes.default.svc
     namespace: metallb-system
