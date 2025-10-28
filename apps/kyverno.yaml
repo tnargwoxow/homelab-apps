@@ -27,6 +27,10 @@ spec:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+        reportsController:
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno
