@@ -23,6 +23,8 @@ spec:
             default: true
           admissionWebhooks:
             enabled: true
+            certManager:
+              enabled: false
             tolerations:
               - key: node-role.kubernetes.io/control-plane
                 operator: Exists
