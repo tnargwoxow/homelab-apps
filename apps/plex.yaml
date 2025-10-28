@@ -24,7 +24,7 @@ spec:
           ingressClassName: "nginx"
 
           # -- The url to use for the ingress reverse proxy to point at this pms instance
-          url: "https://plex.192.168.0.77.sslip.io"
+          url: "plex.192.168.0.77.sslip.io"
 
           # -- Optional TLS configuration to provide valid https connections
           # using an existing SSL certificate
