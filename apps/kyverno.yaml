@@ -14,7 +14,7 @@ spec:
     helm:
       values: |
         crds:
-          install: false
+          install: true
         admissionController:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
