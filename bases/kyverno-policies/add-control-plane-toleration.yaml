@@ -1,0 +1,28 @@
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: add-control-plane-toleration
+spec:
+  validationFailureAction: audit
+  background: true
+  rules:
+    - name: add-toleration-if-namespace-opted-in
+      match:
+        resources:
+          kinds:
+            - Pod
+          namespaceSelector:
+            matchLabels:
+              tolerate-control-plane: "true"
+      mutate:
+        patchStrategicMerge:
+          spec:
+            tolerations:
+              - key: "node-role.kubernetes.io/control-plane"
+                operator: "Exists"
+                effect: "NoSchedule"
+              - key: "node-role.kubernetes.io/master"
+                operator: "Exists"
+                effect: "NoSchedule"
+
+
