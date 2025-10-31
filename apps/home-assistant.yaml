@@ -1,0 +1,45 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: homeassistant
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: http://pajikos.github.io/home-assistant-helm-chart/
+    chart: home-assistant
+    targetRevision: 0.3.27         # pick a version that works, or use “latest” carefully
+    helm:
+      values: |
+        tolerations:
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+          - key: node-role.kubernetes.io/master
+            operator: Exists
+        ingress:
+          # -- Specify if an ingress resource for the pms server should be created or not
+          enabled: true
+
+          # -- The ingress class that should be used
+          ingressClassName: "nginx"
+
+          # -- The url to use for the ingress reverse proxy to point at this pms instance
+          url: "homeassistant.192.168.0.77.sslip.io"
+
+          # -- Optional TLS configuration to provide valid https connections
+          # using an existing SSL certificate
+          tls: []
+
+
+          # -- Custom annotations to put on the ingress resource
+          annotations: {}
+          
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true 
