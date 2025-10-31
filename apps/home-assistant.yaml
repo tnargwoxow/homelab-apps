@@ -24,7 +24,11 @@ spec:
           ingressClassName: "nginx"
 
           # -- The url to use for the ingress reverse proxy to point at this pms instance
-          url: "homeassistant.192.168.0.77.sslip.io"
+          hosts:
+            - host: homeassistant.192.168.0.77.sslip.io
+              paths:
+                - path: /
+                  pathType: Prefix
 
           # -- Optional TLS configuration to provide valid https connections
           # using an existing SSL certificate
@@ -33,7 +37,14 @@ spec:
 
           # -- Custom annotations to put on the ingress resource
           annotations: {}
-          
+      persistence:
+        enabled: true
+        accessMode: ReadWriteOnce
+        storageClass: proxmox-csi
+        size: 5Gi
+      service:
+        type: LoadBalancer
+        loadBalancerIP: 192.168.0.241
   destination:
     server: https://kubernetes.default.svc
     namespace: default
