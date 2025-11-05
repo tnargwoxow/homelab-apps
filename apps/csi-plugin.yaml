@@ -27,6 +27,11 @@ spec:
             # Define the storage class as default
             annotations:
               storageclass.kubernetes.io/is-default-class: "true"
+          - name: proxmox-csi-moviedrive
+            storage: MovieDrive
+            reclaimPolicy: Retain
+            fstype: ext4
+            
         # Let it run on the control plane
         tolerations:
           - key: node-role.kubernetes.io/control-plane

@@ -10,6 +10,6 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 40Gi
-  storageClassName: proxmox-csi
+      storage: 400Gi
+  storageClassName: proxmox-csi-moviedrive
 
