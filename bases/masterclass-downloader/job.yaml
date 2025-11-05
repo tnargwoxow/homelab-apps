@@ -8,6 +8,9 @@ metadata:
 spec:
   # Do not restart the job on failure - let it complete or fail
   backoffLimit: 1
+  # Clean up failed pods after 60 seconds to release PVC mount
+  # This is critical for ReadWriteOnce PVCs - only one pod can mount at a time
+  ttlSecondsAfterFinished: 60
   # Active deadline seconds (optional - uncomment to set max runtime)
   # activeDeadlineSeconds: 86400  # 24 hours
   template:
