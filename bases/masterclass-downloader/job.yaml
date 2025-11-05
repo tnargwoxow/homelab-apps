@@ -7,7 +7,7 @@ metadata:
     app: masterclass-downloader
 spec:
   # Do not restart the job on failure - let it complete or fail
-  backoffLimit: 1
+  backoffLimit: 3
   # Active deadline seconds (optional - uncomment to set max runtime)
   # activeDeadlineSeconds: 86400  # 24 hours
   template:
@@ -62,11 +62,11 @@ spec:
           mountPath: /app/masterclass/data
         resources:
           requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
             memory: "2Gi"
             cpu: "1000m"
-          limits:
-            memory: "4Gi"
-            cpu: "2000m"
       volumes:
       - name: videos-storage
         persistentVolumeClaim:
