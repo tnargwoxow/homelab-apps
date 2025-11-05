@@ -7,7 +7,7 @@ metadata:
     app: masterclass-downloader
 spec:
   # Do not restart the job on failure - let it complete or fail
-  backoffLimit: 3
+  backoffLimit: 1
   # Active deadline seconds (optional - uncomment to set max runtime)
   # activeDeadlineSeconds: 86400  # 24 hours
   template:
