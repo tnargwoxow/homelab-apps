@@ -39,6 +39,22 @@ spec:
               operator: Exists
             - key: node-role.kubernetes.io/master
               operator: Exists
+        controller:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        driver:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
   destination:
     server: https://kubernetes.default.svc
     namespace: csi-proxmox
