@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: masterclass-config
+  namespace: default
+  labels:
+    app: masterclass-downloader
+data:
+  # Output directories
+  OUTPUT_DIR: "/app/masterclass/masterclass_videos"
+  DATA_DIR: "/app/masterclass/data"
+  # CSV file paths
+  COURSES_CSV: "/app/masterclass/data/masterclass_courses.csv"
+  VIDEOS_CSV: "/app/masterclass/data/masterclass_videos.csv"
+  PROGRESS_CSV: "/app/masterclass/data/download_progress.csv"
+

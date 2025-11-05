@@ -1,0 +1,17 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - secret.yaml
+  - configmap.yaml
+  - persistentvolumeclaim.yaml
+  - job.yaml
+
+commonLabels:
+  app: masterclass-downloader
+  managed-by: argocd
+
+images:
+  - name: tnargwoxow/masterclass-downloader
+    newTag: latest
+

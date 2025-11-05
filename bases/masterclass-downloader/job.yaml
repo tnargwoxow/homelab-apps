@@ -1,0 +1,72 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: masterclass-downloader
+  namespace: default
+  labels:
+    app: masterclass-downloader
+spec:
+  # Do not restart the job on failure - let it complete or fail
+  backoffLimit: 1
+  # Active deadline seconds (optional - uncomment to set max runtime)
+  # activeDeadlineSeconds: 86400  # 24 hours
+  template:
+    metadata:
+      labels:
+        app: masterclass-downloader
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: masterclass-downloader
+        image: tnargwoxow/masterclass-downloader:latest
+        imagePullPolicy: Always
+        command: ["/app/docker-entrypoint.sh"]
+        args: 
+          - "download-all"
+          - "--courses-csv"
+          - "/app/masterclass/data/masterclass_courses.csv"
+        env:
+        # Load credentials from Secret
+        - name: MASTERCLASS_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: masterclass-credentials
+              key: MASTERCLASS_USERNAME
+        - name: MASTERCLASS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: masterclass-credentials
+              key: MASTERCLASS_PASSWORD
+        # Optional: Load config from ConfigMap
+        - name: OUTPUT_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: masterclass-config
+              key: OUTPUT_DIR
+        - name: DATA_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: masterclass-config
+              key: DATA_DIR
+        volumeMounts:
+        # Mount PVC for videos storage
+        - name: videos-storage
+          mountPath: /app/masterclass/masterclass_videos
+        # Mount PVC for data files (CSV, progress tracking)
+        - name: data-storage
+          mountPath: /app/masterclass/data
+        resources:
+          requests:
+            memory: "2Gi"
+            cpu: "1000m"
+          limits:
+            memory: "4Gi"
+            cpu: "2000m"
+      volumes:
+      - name: videos-storage
+        persistentVolumeClaim:
+          claimName: masterclass-storage
+      - name: data-storage
+        persistentVolumeClaim:
+          claimName: masterclass-storage
+
