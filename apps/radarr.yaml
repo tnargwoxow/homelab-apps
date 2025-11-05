@@ -1,53 +1,53 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: radarr
-  namespace: argocd
-spec:
-  project: default
-  source:
-    repoURL: https://charts.pree.dev
-    chart: radarr
-    targetRevision: 1.24.1         # pick a version that works, or use “latest” carefully
-    helm:
-      values: |
-        ingress:
-          main:
-            enabled: true
-            hosts:
-              - host: radarr.192.168.0.77.sslip.io
-                paths:
-                  - path: /
-                    pathType: Prefix
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: radarr
+#   namespace: argocd
+# spec:
+#   project: default
+#   source:
+#     repoURL: https://charts.pree.dev
+#     chart: radarr
+#     targetRevision: 1.24.1         # pick a version that works, or use “latest” carefully
+#     helm:
+#       values: |
+#         ingress:
+#           main:
+#             enabled: true
+#             hosts:
+#               - host: radarr.192.168.0.77.sslip.io
+#                 paths:
+#                   - path: /
+#                     pathType: Prefix
         
-        probes:
-          startup:
-            enabled: true
-            spec:
-              initialDelaySeconds: 30
-              periodSeconds: 10
-              timeoutSeconds: 5
-              failureThreshold: 30
-          liveness:
-            enabled: true
-            spec:
-              initialDelaySeconds: 60
-              periodSeconds: 10
-              timeoutSeconds: 5
-              failureThreshold: 5
-          readiness:
-            enabled: true
-            spec:
-              initialDelaySeconds: 30
-              periodSeconds: 10
-              timeoutSeconds: 5
-              failureThreshold: 3
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: default
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true 
+#         probes:
+#           startup:
+#             enabled: true
+#             spec:
+#               initialDelaySeconds: 30
+#               periodSeconds: 10
+#               timeoutSeconds: 5
+#               failureThreshold: 30
+#           liveness:
+#             enabled: true
+#             spec:
+#               initialDelaySeconds: 60
+#               periodSeconds: 10
+#               timeoutSeconds: 5
+#               failureThreshold: 5
+#           readiness:
+#             enabled: true
+#             spec:
+#               initialDelaySeconds: 30
+#               periodSeconds: 10
+#               timeoutSeconds: 5
+#               failureThreshold: 3
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: default
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#     syncOptions:
+#       - CreateNamespace=true 

@@ -10,7 +10,9 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 500Gi  # Adjust based on your needs - videos can be large
+      storage: 1000Gi
+  storageClassName: proxmox-csi
+  
   # Optional: specify storageClassName if your cluster requires it
   # storageClassName: standard
 
