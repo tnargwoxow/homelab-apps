@@ -10,7 +10,7 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 1000Gi
+      storage: 40Gi
   storageClassName: proxmox-csi
   
   # Optional: specify storageClassName if your cluster requires it
