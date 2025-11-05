@@ -18,6 +18,11 @@ spec:
       prune: true
       selfHeal: true
     syncOptions:
-      - Replace=true
       - CreateNamespace=true
+      - ServerSideApply=true
+  ignoreDifferences:
+  - group: ""
+    kind: PersistentVolumeClaim
+    jsonPointers:
+    - /status
 
