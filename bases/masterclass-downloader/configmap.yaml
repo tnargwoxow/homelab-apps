@@ -6,11 +6,11 @@ metadata:
   labels:
     app: masterclass-downloader
 data:
-  # Output directories
-  OUTPUT_DIR: "/app/masterclass/masterclass_videos"
-  DATA_DIR: "/app/masterclass/data"
+  # Output directories (PVC mounted at /data)
+  OUTPUT_DIR: "/data/masterclass_videos"
+  DATA_DIR: "/data"
   # CSV file paths
-  COURSES_CSV: "/app/masterclass/data/masterclass_courses.csv"
-  VIDEOS_CSV: "/app/masterclass/data/masterclass_videos.csv"
-  PROGRESS_CSV: "/app/masterclass/data/download_progress.csv"
+  COURSES_CSV: "/data/masterclass_courses.csv"
+  VIDEOS_CSV: "/data/masterclass_videos.csv"
+  PROGRESS_CSV: "/data/download_progress.csv"
 

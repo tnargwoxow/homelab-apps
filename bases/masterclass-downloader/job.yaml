@@ -32,7 +32,9 @@ spec:
         args: 
           - "download-all"
           - "--courses-csv"
-          - "/app/masterclass/data/masterclass_courses.csv"
+          - "/data/masterclass_courses.csv"
+          - "--output-dir"
+          - "/data/masterclass_videos"
         env:
         # Load credentials from Secret
         - name: MASTERCLASS_USERNAME
@@ -59,7 +61,7 @@ spec:
         volumeMounts:
         # Mount PVC once - subdirectories (masterclass_videos and data) will be created automatically
         - name: masterclass-storage
-          mountPath: /app/masterclass
+          mountPath: /data
         resources:
           requests:
             memory: "256Mi"
