@@ -20,6 +20,13 @@ argo-cd:
         # nginx.ingress.kubernetes.io/ssl-passthrough: "false"
         nginx.ingress.kubernetes.io/ssl-redirect: "false"
         nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
+    resources:
+      requests:
+        cpu: 50m
+        memory: 128Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
 
     service:
       type: LoadBalancer
@@ -43,9 +50,6 @@ argo-cd:
       requests:
         cpu: 20m
         memory: 64Mi
-      limits:
-        cpu: 100m
-        memory: 128Mi
 
   repoServer:
     # ensures it runs as a Deployment, not a job
@@ -85,16 +89,6 @@ argo-cd:
       limits:
         cpu: 100m
         memory: 128Mi
-
-  server:
-    resources:
-      requests:
-        cpu: 50m
-        memory: 128Mi
-      limits:
-        cpu: 200m
-        memory: 256Mi
-
   applicationSet:
     resources:
       requests:
