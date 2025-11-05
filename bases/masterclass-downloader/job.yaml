@@ -16,6 +16,11 @@ spec:
         app: masterclass-downloader
     spec:
       restartPolicy: Never
+      tolerations:
+      - key: node-role.kubernetes.io/control-plane
+        operator: Exists
+      - key: node-role.kubernetes.io/master
+        operator: Exists
       containers:
       - name: masterclass-downloader
         image: tnargwoxow/masterclass-downloader:latest
