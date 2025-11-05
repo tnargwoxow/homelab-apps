@@ -20,9 +20,17 @@ spec:
     syncOptions:
       - CreateNamespace=true
       - ServerSideApply=true
+      - RespectIgnoreDifferences=true
   ignoreDifferences:
   - group: ""
     kind: PersistentVolumeClaim
+    name: masterclass-storage
     jsonPointers:
     - /status
+    - /metadata/annotations
+    - /metadata/resourceVersion
+    - /metadata/generation
+    - /metadata/uid
+    - /metadata/creationTimestamp
+    - /metadata/managedFields
 
