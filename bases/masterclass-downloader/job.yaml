@@ -54,12 +54,9 @@ spec:
               name: masterclass-config
               key: DATA_DIR
         volumeMounts:
-        # Mount PVC for videos storage
-        - name: videos-storage
-          mountPath: /app/masterclass/masterclass_videos
-        # Mount PVC for data files (CSV, progress tracking)
-        - name: data-storage
-          mountPath: /app/masterclass/data
+        # Mount PVC once - subdirectories (masterclass_videos and data) will be created automatically
+        - name: masterclass-storage
+          mountPath: /app/masterclass
         resources:
           requests:
             memory: "256Mi"
@@ -68,10 +65,7 @@ spec:
             memory: "1Gi"
             cpu: "500m"
       volumes:
-      - name: videos-storage
-        persistentVolumeClaim:
-          claimName: masterclass-storage
-      - name: data-storage
+      - name: masterclass-storage
         persistentVolumeClaim:
           claimName: masterclass-storage
 
