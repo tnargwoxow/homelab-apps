@@ -17,10 +17,24 @@ spec:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
         speaker:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
   destination:
     server: https://kubernetes.default.svc
     namespace: metallb-system

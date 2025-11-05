@@ -62,11 +62,11 @@ spec:
           mountPath: /app/masterclass/data
         resources:
           requests:
-            memory: "512Mi"
-            cpu: "500m"
+            memory: "256Mi"
+            cpu: "250m"
           limits:
-            memory: "2Gi"
-            cpu: "1000m"
+            memory: "1Gi"
+            cpu: "500m"
       volumes:
       - name: videos-storage
         persistentVolumeClaim:

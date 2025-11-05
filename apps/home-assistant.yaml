@@ -45,6 +45,13 @@
 #       service:
 #         type: LoadBalancer
 #         loadBalancerIP: 192.168.0.241
+#       resources:
+#         requests:
+#           memory: "128Mi"
+#           cpu: "100m"
+#         limits:
+#           memory: "256Mi"
+#           cpu: "500m"
 #   destination:
 #     server: https://kubernetes.default.svc
 #     namespace: default

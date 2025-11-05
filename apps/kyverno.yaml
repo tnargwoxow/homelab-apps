@@ -19,18 +19,46 @@ spec:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
         backgroundController:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
         cleanupController:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
         reportsController:
           tolerations:
             - key: node-role.kubernetes.io/control-plane
               operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
   destination:
     server: https://kubernetes.default.svc
     namespace: kyverno

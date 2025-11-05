@@ -46,6 +46,21 @@ spec:
               operator: Exists
             - key: node-role.kubernetes.io/master
               operator: Exists
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "25m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+        controller:
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"
   destination:
     server: https://kubernetes.default.svc
     namespace: ingress-nginx
