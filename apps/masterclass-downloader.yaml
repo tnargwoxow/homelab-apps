@@ -1,36 +1,36 @@
-# apiVersion: argoproj.io/v1alpha1
-# kind: Application
-# metadata:
-#   name: masterclass-downloader
-#   namespace: argocd
-# spec:
-#   project: default
-#   source:
-#     repoURL: https://github.com/tnargwoxow/homelab-apps.git
-#     targetRevision: HEAD
-#     path: overlays/masterclass-downloader
-#   destination:
-#     server: https://kubernetes.default.svc
-#     namespace: default
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: masterclass-downloader
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/tnargwoxow/homelab-apps.git
+    targetRevision: HEAD
+    path: overlays/masterclass-downloader
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: default
 
-#   syncPolicy:
-#     automated:
-#       prune: true
-#       selfHeal: true
-#     syncOptions:
-#       - CreateNamespace=true
-#       - ServerSideApply=true
-#       - RespectIgnoreDifferences=true
-#   ignoreDifferences:
-#   - group: ""
-#     kind: PersistentVolumeClaim
-#     name: masterclass-storage
-#     jsonPointers:
-#     - /status
-#     - /metadata/annotations
-#     - /metadata/resourceVersion
-#     - /metadata/generation
-#     - /metadata/uid
-#     - /metadata/creationTimestamp
-#     - /metadata/managedFields
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+  ignoreDifferences:
+  - group: ""
+    kind: PersistentVolumeClaim
+    name: masterclass-storage
+    jsonPointers:
+    - /status
+    - /metadata/annotations
+    - /metadata/resourceVersion
+    - /metadata/generation
+    - /metadata/uid
+    - /metadata/creationTimestamp
+    - /metadata/managedFields
 

@@ -1,48 +1,48 @@
-# apiVersion: argoproj.io/v1alpha1
-# kind: Application
-# metadata:
-#   name: metallb
-#   namespace: argocd
-#   annotations:
-#     argocd.argoproj.io/sync-wave: "-1"
-# spec:
-#   project: default
-#   source:
-#     repoURL: https://metallb.github.io/metallb
-#     chart: metallb
-#     targetRevision: 0.14.5
-#     helm:
-#       values: |
-#         controller:
-#           tolerations:
-#             - key: node-role.kubernetes.io/control-plane
-#               operator: Exists
-#           resources:
-#             requests:
-#               memory: "64Mi"
-#               cpu: "50m"
-#             limits:
-#               memory: "128Mi"
-#               cpu: "200m"
-#         speaker:
-#           tolerations:
-#             - key: node-role.kubernetes.io/control-plane
-#               operator: Exists
-#           resources:
-#             requests:
-#               memory: "64Mi"
-#               cpu: "50m"
-#             limits:
-#               memory: "128Mi"
-#               cpu: "200m"
-#   destination:
-#     server: https://kubernetes.default.svc
-#     namespace: metallb-system
-#   syncPolicy:
-#     automated:
-#       prune: true
-#       selfHeal: true
-#     syncOptions:
-#       - CreateNamespace=true
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: metallb
+  namespace: argocd
+  annotations:
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: default
+  source:
+    repoURL: https://metallb.github.io/metallb
+    chart: metallb
+    targetRevision: 0.14.5
+    helm:
+      values: |
+        controller:
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+        speaker:
+          tolerations:
+            - key: node-role.kubernetes.io/control-plane
+              operator: Exists
+          resources:
+            requests:
+              memory: "64Mi"
+              cpu: "50m"
+            limits:
+              memory: "128Mi"
+              cpu: "200m"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: metallb-system
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
 
 
