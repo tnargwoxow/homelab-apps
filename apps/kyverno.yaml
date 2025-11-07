@@ -1,73 +1,73 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: kyverno
-  namespace: argocd
-  annotations:
-    argocd.argoproj.io/sync-wave: "-1"
-spec:
-  project: default
-  source:
-    repoURL: https://kyverno.github.io/kyverno/
-    chart: kyverno
-    targetRevision: 3.2.3
-    helm:
-      values: |
-        crds:
-          install: true
-        admissionController:
-          tolerations:
-            - key: node-role.kubernetes.io/control-plane
-              operator: Exists
-          resources:
-            requests:
-              memory: "128Mi"
-              cpu: "100m"
-            limits:
-              memory: "256Mi"
-              cpu: "500m"
-        backgroundController:
-          tolerations:
-            - key: node-role.kubernetes.io/control-plane
-              operator: Exists
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "50m"
-            limits:
-              memory: "128Mi"
-              cpu: "200m"
-        cleanupController:
-          tolerations:
-            - key: node-role.kubernetes.io/control-plane
-              operator: Exists
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "50m"
-            limits:
-              memory: "128Mi"
-              cpu: "200m"
-        reportsController:
-          tolerations:
-            - key: node-role.kubernetes.io/control-plane
-              operator: Exists
-          resources:
-            requests:
-              memory: "64Mi"
-              cpu: "50m"
-            limits:
-              memory: "128Mi"
-              cpu: "200m"
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: kyverno
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
-      - ServerSideApply=true
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: kyverno
+#   namespace: argocd
+#   annotations:
+#     argocd.argoproj.io/sync-wave: "-1"
+# spec:
+#   project: default
+#   source:
+#     repoURL: https://kyverno.github.io/kyverno/
+#     chart: kyverno
+#     targetRevision: 3.2.3
+#     helm:
+#       values: |
+#         crds:
+#           install: true
+#         admissionController:
+#           tolerations:
+#             - key: node-role.kubernetes.io/control-plane
+#               operator: Exists
+#           resources:
+#             requests:
+#               memory: "128Mi"
+#               cpu: "100m"
+#             limits:
+#               memory: "256Mi"
+#               cpu: "500m"
+#         backgroundController:
+#           tolerations:
+#             - key: node-role.kubernetes.io/control-plane
+#               operator: Exists
+#           resources:
+#             requests:
+#               memory: "64Mi"
+#               cpu: "50m"
+#             limits:
+#               memory: "128Mi"
+#               cpu: "200m"
+#         cleanupController:
+#           tolerations:
+#             - key: node-role.kubernetes.io/control-plane
+#               operator: Exists
+#           resources:
+#             requests:
+#               memory: "64Mi"
+#               cpu: "50m"
+#             limits:
+#               memory: "128Mi"
+#               cpu: "200m"
+#         reportsController:
+#           tolerations:
+#             - key: node-role.kubernetes.io/control-plane
+#               operator: Exists
+#           resources:
+#             requests:
+#               memory: "64Mi"
+#               cpu: "50m"
+#             limits:
+#               memory: "128Mi"
+#               cpu: "200m"
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: kyverno
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#     syncOptions:
+#       - CreateNamespace=true
+#       - ServerSideApply=true
 
 
