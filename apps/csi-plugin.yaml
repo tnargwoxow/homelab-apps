@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: csi-plugin
   namespace: argocd
+  # Finalizer ensures resources are deleted when Application is removed from Git
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:

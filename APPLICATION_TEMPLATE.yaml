@@ -1,0 +1,44 @@
+# Template for ArgoCD Applications
+# Copy this when creating new Applications
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: YOUR-APP-NAME
+  namespace: argocd
+  # IMPORTANT: Add this finalizer to EVERY Application
+  # This ensures resources are deleted when you move/delete the file from Git
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: default
+  source:
+    repoURL: YOUR-REPO-URL
+    targetRevision: HEAD
+    path: YOUR-PATH
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: YOUR-NAMESPACE
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+
+---
+# KEY POINTS:
+#
+# 1. FINALIZER IN EVERY APP:
+#    - Add finalizers to EVERY individual Application (not just app-of-apps)
+#    - This ensures each app's resources are cleaned up when removed
+#
+# 2. APP-OF-APPS FINALIZER:
+#    - Also add finalizer to app-of-apps for cascading deletion of child apps
+#
+# 3. DELETION WORKFLOW:
+#    - Move file to archivedapps/ or delete from Git
+#    - ArgoCD detects file is gone
+#    - Finalizer ensures resources are deleted BEFORE Application is removed
+#    - No orphaned resources!
+

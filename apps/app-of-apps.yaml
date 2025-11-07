@@ -3,6 +3,9 @@ kind: Application
 metadata:
   name: app-of-apps
   namespace: argocd
+  # Finalizer ensures child Applications are deleted before app-of-apps
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: default
   source:
