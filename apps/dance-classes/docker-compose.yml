@@ -13,11 +13,18 @@ services:
       VIDEOS_DIR: /videos
       DATA_DIR: /data
       PORT: "8080"
-      THUMB_CONCURRENCY: "1"
+      # ffmpeg is single-threaded per worker; raise this to use more cores
+      # during the initial thumbnail pass. Idle CPU is unaffected since
+      # workers only run when there are pending videos.
+      THUMB_CONCURRENCY: "2"
       PROBE_CONCURRENCY: "2"
       LOG_LEVEL: info
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: "1.0"
+          # Memory cap stays generous; the app idles around 100-150MB.
+          memory: 768M
+          # No hard CPU cap by default — let thumbnail generation use whatever
+          # cores the host (or LXC) gives it. Set this back to "1.0" or "2.0"
+          # if you need to throttle.
+          # cpus: "2.0"

@@ -13,7 +13,7 @@ export class WorkQueue {
   private failed = 0;
   private readonly waiting: Array<() => void> = [];
 
-  constructor(private readonly concurrency: number) {}
+  constructor(public readonly concurrency: number) {}
 
   stats(): QueueStats {
     return { active: this.active, pending: this.waiting.length, done: this.done, failed: this.failed };

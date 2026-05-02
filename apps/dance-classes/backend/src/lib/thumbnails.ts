@@ -16,12 +16,27 @@ export function generateThumbnail({ videoPath, outPath, durationSec }: Thumbnail
     if (durationSec !== null && durationSec > 0) {
       seekSec = durationSec < 30 ? Math.min(1, Math.max(0, durationSec / 4)) : durationSec * 0.1;
     }
+    // -ss before -i is the fast input-side seek (jumps via container index, no
+    // decoding up to the seek point).
+    // -an / -sn skip audio + subtitle streams entirely.
+    // -update 1 + image2 keeps the muxer simple for a single-frame output.
+    // -threads 1 prevents ffmpeg from spawning N decoder threads when the
+    // queue itself is what controls parallelism.
+    // -loglevel error keeps stderr quiet so the pipe doesn't fill up.
     const args = [
+      '-hide_banner',
+      '-loglevel', 'error',
+      '-nostdin',
       '-ss', seekSec.toFixed(2),
       '-i', videoPath,
       '-frames:v', '1',
       '-vf', 'scale=320:-2',
       '-q:v', '5',
+      '-an',
+      '-sn',
+      '-threads', '1',
+      '-update', '1',
+      '-f', 'image2',
       '-y',
       outPath
     ];

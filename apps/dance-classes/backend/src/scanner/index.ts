@@ -28,6 +28,10 @@ interface ScanState {
   watcher: FSWatcher | null;
   scanning: boolean;
   workersTimer: NodeJS.Timeout | null;
+  // Ids currently queued or running, so pumpWorkers doesn't enqueue duplicates
+  // every tick. Separate sets per phase since a video can move pending -> probed.
+  inFlightProbe: Set<number>;
+  inFlightThumb: Set<number>;
 }
 
 let state: ScanState | null = null;
@@ -79,19 +83,54 @@ async function thumbOne(s: ScanState, row: ProbedVideoRow): Promise<void> {
 }
 
 function pumpWorkers(s: ScanState): void {
-  // Probe pending videos (status='pending')
-  const pendingProbe = s.db
-    .prepare<[], PendingVideoRow>("SELECT id, rel_path FROM videos WHERE scan_status='pending' LIMIT 50")
-    .all();
-  for (const row of pendingProbe) {
-    void s.probeQueue.run(() => probeOne(s, row));
+  // Cap how many we enqueue so the queue doesn't grow unboundedly when the
+  // library is large. The work queue itself only runs `concurrency` at a time,
+  // but the waiting list can otherwise pile up tens of thousands of closures.
+  const probeBudget = s.probeQueue.concurrency * 2 + 4;
+  const thumbBudget = s.thumbQueue.concurrency * 2 + 4;
+
+  // Probe pending videos (status='pending'), skipping anything already in flight
+  if (s.inFlightProbe.size < probeBudget) {
+    const pendingProbe = s.db
+      .prepare<[], PendingVideoRow>("SELECT id, rel_path FROM videos WHERE scan_status='pending' LIMIT 200")
+      .all();
+    for (const row of pendingProbe) {
+      if (s.inFlightProbe.has(row.id)) continue;
+      if (s.inFlightProbe.size >= probeBudget) break;
+      s.inFlightProbe.add(row.id);
+      void s.probeQueue.run(async () => {
+        try {
+          await probeOne(s, row);
+        } finally {
+          s.inFlightProbe.delete(row.id);
+          // Pump again right away so the next item starts without waiting for
+          // the next tick of the 1.5s timer.
+          if (state) pumpWorkers(state);
+        }
+      });
+    }
   }
+
   // Thumbnail probed videos (status='probed' AND thumb_path IS NULL)
-  const pendingThumb = s.db
-    .prepare<[], ProbedVideoRow>("SELECT id, rel_path, duration_sec FROM videos WHERE scan_status='probed' AND thumb_path IS NULL LIMIT 50")
-    .all();
-  for (const row of pendingThumb) {
-    void s.thumbQueue.run(() => thumbOne(s, row));
+  if (s.inFlightThumb.size < thumbBudget) {
+    const pendingThumb = s.db
+      .prepare<[], ProbedVideoRow>(
+        "SELECT id, rel_path, duration_sec FROM videos WHERE scan_status='probed' AND thumb_path IS NULL LIMIT 200"
+      )
+      .all();
+    for (const row of pendingThumb) {
+      if (s.inFlightThumb.has(row.id)) continue;
+      if (s.inFlightThumb.size >= thumbBudget) break;
+      s.inFlightThumb.add(row.id);
+      void s.thumbQueue.run(async () => {
+        try {
+          await thumbOne(s, row);
+        } finally {
+          s.inFlightThumb.delete(row.id);
+          if (state) pumpWorkers(state);
+        }
+      });
+    }
   }
 }
 
@@ -105,7 +144,9 @@ export function startScanner(opts: StartOpts): void {
     thumbQueue: new WorkQueue(opts.thumbConcurrency),
     watcher: null,
     scanning: false,
-    workersTimer: null
+    workersTimer: null,
+    inFlightProbe: new Set<number>(),
+    inFlightThumb: new Set<number>()
   };
 
   fs.mkdirSync(opts.thumbDir, { recursive: true });
@@ -116,6 +157,9 @@ export function startScanner(opts: StartOpts): void {
     try {
       const summary = await walkLibrary(state.db, state.videosDir);
       state.logger.info({ summary }, 'initial walk complete');
+      // Kick the workers immediately after the walk so we don't wait for the
+      // periodic timer to begin processing.
+      if (state) pumpWorkers(state);
     } catch (err) {
       state.logger.error({ err }, 'initial walk failed');
     } finally {
@@ -124,10 +168,12 @@ export function startScanner(opts: StartOpts): void {
   };
   void initial();
 
+  // Periodic safety-net pump in case rows appear via the watcher while the
+  // queues are idle. The main driver is now the post-job pump in pumpWorkers.
   state.workersTimer = setInterval(() => {
     if (!state) return;
     pumpWorkers(state);
-  }, 1500);
+  }, 5000);
 
   state.watcher = startWatcher({
     db: state.db,
@@ -135,6 +181,11 @@ export function startScanner(opts: StartOpts): void {
     logger: state.logger,
     onChange: () => state && pumpWorkers(state)
   });
+
+  opts.logger.info(
+    { probeConcurrency: opts.probeConcurrency, thumbConcurrency: opts.thumbConcurrency },
+    'scanner started'
+  );
 }
 
 export async function stopScanner(): Promise<void> {
@@ -148,7 +199,10 @@ export function triggerRescan(): void {
   if (!state) return;
   state.scanning = true;
   walkLibrary(state.db, state.videosDir)
-    .then(summary => state?.logger.info({ summary }, 'manual rescan complete'))
+    .then(summary => {
+      state?.logger.info({ summary }, 'manual rescan complete');
+      if (state) pumpWorkers(state);
+    })
     .catch(err => state?.logger.error({ err }, 'manual rescan failed'))
     .finally(() => { if (state) state.scanning = false; });
 }
