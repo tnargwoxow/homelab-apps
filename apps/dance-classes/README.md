@@ -113,10 +113,21 @@ chmod 600 /root/.git-credentials
 
 ## Notes on external assets
 
-- The "Pacifico" display font loads from Google Fonts.
+- The display fonts (Pacifico for ballet, Cinzel for heels, Bebas Neue for hiphop) load from Google Fonts.
 - The Squirtle and Mew mascots load from PokeAPI's public sprite repository on GitHub.
+- The Channing Tatum and Flying Steps mascots load from Wikimedia Commons via the `Special:FilePath` redirect.
 
-If your server has no internet access, both will fall back gracefully (system cursive font and broken-image icon respectively). Drop replacements into `frontend/public/` and update the references in `App.svelte` if you want a fully offline build.
+If a remote image fails to load, each theme has an SVG fallback so the page always looks intentional (Squirtle/Mew hand-drawn, a stiletto+flame for heels, a breakdancer-in-a-circle for hiphop). The Flying Steps wordmark in the header is also fully local SVG.
+
+### Customizing the mascot images
+
+Open `frontend/src/lib/themes.ts`. Each theme has `mascotLeft` and `mascotRight` with `src` URLs you can swap for anything you want — another Wikimedia photo, a Flickr CC image, or a file you drop into `frontend/public/mascots/` (e.g. `'/mascots/channing-1.jpg'`). Rebuild the container after editing:
+
+```bash
+docker compose up -d --build
+```
+
+For a fully offline build, replace every `https://…` URL in `themes.ts` with `/mascots/<filename>` and put the files in `frontend/public/mascots/`. The Pacifico/Cinzel/Bebas Neue fonts will fall back to system fonts if Google Fonts is unreachable.
 
 ## Troubleshooting
 

@@ -76,14 +76,22 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
     },
     search: { placeholder: 'Search heels routines, choreographers…', resultsTitle: 'Find a routine' },
     favoritesIcon: '🔥',
+    // ----------------------------------------------------------------
+    // SWAP THESE if you want different photos. They're just any image
+    // URLs — drop a file into frontend/public/mascots/ and reference
+    // it as e.g. '/mascots/heels-1.jpg' if you want fully local.
+    // ----------------------------------------------------------------
     mascotLeft: {
-      // Wikimedia Commons - Channing Tatum at TIFF 2014 (Gage Skidmore-era photo)
-      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Channing_Tatum_2014_TIFF.jpg?width=320',
+      // Default: Wikimedia Commons via Special:FilePath. If the filename
+      // doesn't exist, the SVG fallback (stiletto + flame) takes over.
+      // Easiest reliable option: drop a JPG into frontend/public/mascots/
+      // and use src: '/mascots/channing-1.jpg' instead.
+      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Channing_Tatum_by_Gage_Skidmore.jpg?width=400',
       alt: 'Channing Tatum'
     },
     mascotRight: {
-      // Wikimedia Commons - Channing Tatum 2010 portrait
-      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Channing_Tatum_2010_TIFF.jpg?width=320',
+      // Same as above. Local-file alternative: '/mascots/channing-2.jpg'
+      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Channing_Tatum_2012.jpg?width=400',
       alt: 'Channing Tatum'
     },
     mascotKind: 'heels',
@@ -92,11 +100,11 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
   hiphop: {
     id: 'hiphop',
     label: 'Flying Steps',
-    emoji: '🧢',
-    appName: 'Flying Steps Sessions',
+    emoji: '🅵',
+    appName: 'Flying Steps Academy',
     tagline: 'breaks by',
-    welcomeTitle: 'On the Beat',
-    welcomeBlurb: 'B-boy, b-girl, freshness. Find your set and lock in.',
+    welcomeTitle: 'Welcome to the Academy',
+    welcomeBlurb: 'B-boy, b-girl, freshness. Berlin-grown breaking from Flying Steps. Find your set and lock in.',
     sections: {
       continueWatching: 'Drop Back In',
       favorites: 'Saved Sets',
@@ -107,14 +115,16 @@ export const THEMES: Record<ThemeId, ThemeConfig> = {
     search: { placeholder: 'Search sets, crews, moves…', resultsTitle: 'Search the cypher' },
     favoritesIcon: '★',
     mascotLeft: {
-      // Wikimedia Commons - Flying Steps at Red Bull Flying Bach
-      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Flying_Steps_-_Red_Bull_Flying_Bach.jpg?width=320',
+      // Default: Wikimedia Commons via Special:FilePath. If the filename
+      // doesn't exist, the SVG fallback (red/black breakdancer badge) shows.
+      // Local-file alternative: '/mascots/flying-steps-1.jpg'.
+      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Flying_Bach_-_Vartan.jpg?width=400',
       alt: 'Flying Steps'
     },
     mascotRight: {
-      // Wikimedia Commons - Vartan Bassil (Flying Steps founder), placeholder
-      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Vartan_Bassil.jpg?width=320',
-      alt: 'Vartan Bassil'
+      // Same as above. Local-file alternative: '/mascots/flying-steps-2.jpg'
+      src: 'https://commons.wikimedia.org/wiki/Special:FilePath/Flying_Steps_2014.jpg?width=400',
+      alt: 'Flying Steps'
     },
     mascotKind: 'hiphop',
     emptyHint: 'No sets yet — drop something in the library.'

@@ -5,6 +5,7 @@
   import { onMount } from 'svelte';
   import SearchBar from './components/SearchBar.svelte';
   import BalletShoe from './components/BalletShoe.svelte';
+  import FlyingStepsLogo from './components/FlyingStepsLogo.svelte';
   import Sparkle from './components/Sparkle.svelte';
   import Mascot from './components/Mascot.svelte';
   import ThemeSelector from './components/ThemeSelector.svelte';
@@ -37,12 +38,14 @@
       <a use:link href="/" class="flex shrink-0 items-center gap-2" style="color: var(--theme-text-strong);">
         {#if $theme.id === 'ballet'}
           <BalletShoe class="h-7 w-7" />
-        {:else if $theme.id === 'heels'}
-          <span class="text-xl">{$theme.emoji}</span>
+          <span class="font-display text-lg leading-none sm:text-2xl">{$theme.appName}</span>
+        {:else if $theme.id === 'hiphop'}
+          <FlyingStepsLogo class="h-8 sm:h-9" />
+          <span class="hidden font-display text-sm leading-none tracking-wider opacity-70 lg:inline">ACADEMY</span>
         {:else}
           <span class="text-xl">{$theme.emoji}</span>
+          <span class="font-display text-lg leading-none sm:text-2xl">{$theme.appName}</span>
         {/if}
-        <span class="font-display text-lg leading-none sm:text-2xl">{$theme.appName}</span>
       </a>
       <nav class="ml-2 hidden items-center gap-1 text-sm font-medium md:flex" style="color: var(--theme-text-strong);">
         <a use:link href="/" class="rounded-full px-3 py-1.5"

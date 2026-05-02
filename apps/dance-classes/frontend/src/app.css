@@ -89,44 +89,45 @@
 }
 
 [data-theme='hiphop'] {
-  --theme-grad-1: #0a0a0a;
-  --theme-grad-2: #161616;
-  --theme-grad-3: #050505;
+  --theme-grad-1: #0a0000;
+  --theme-grad-2: #170303;
+  --theme-grad-3: #050000;
   --theme-bg-base: #0a0a0a;
-  --theme-bg-mid:  #141414;
-  --theme-bg-end:  #050505;
+  --theme-bg-mid:  #141010;
+  --theme-bg-end:  #050000;
 
   --theme-text:        #fafafa;
-  --theme-text-strong: #facc15;
+  --theme-text-strong: #ffffff;
   --theme-text-muted:  #a3a3a3;
 
-  --theme-accent:        #facc15;        /* electric yellow */
-  --theme-accent-hover:  #eab308;
-  --theme-accent-2:      #ef4444;        /* red */
+  /* Flying Steps Berlin uses a deep crimson red as their primary brand color */
+  --theme-accent:        #e30613;        /* Flying Steps red */
+  --theme-accent-hover:  #b30410;
+  --theme-accent-2:      #ffffff;
 
-  --theme-card-bg:        rgba(10, 10, 10, 0.72);
-  --theme-card-ring:      #2a2a2a;
-  --theme-card-ring-hover:#facc15;
+  --theme-card-bg:        rgba(15, 8, 8, 0.74);
+  --theme-card-ring:      #2a2020;
+  --theme-card-ring-hover:#e30613;
   --theme-card-shadow:    0 1px 2px rgba(0, 0, 0, 0.5);
-  --theme-card-shadow-h:  0 6px 18px rgba(250, 204, 21, 0.25);
+  --theme-card-shadow-h:  0 6px 18px rgba(227, 6, 19, 0.35);
 
-  --theme-header-bg:    rgba(10, 10, 10, 0.85);
-  --theme-header-ring:  #2a2a2a;
-  --theme-pill-bg:      #161616;
-  --theme-pill-ring:    #2a2a2a;
+  --theme-header-bg:    rgba(8, 4, 4, 0.9);
+  --theme-header-ring:  #2a2020;
+  --theme-pill-bg:      #1a1212;
+  --theme-pill-ring:    #2a2020;
   --theme-pill-text:    #fafafa;
-  --theme-pill-hover:   #1f1f1f;
+  --theme-pill-hover:   #2a1818;
 
   --theme-display-font: 'Bebas Neue', 'Anton', 'Impact', sans-serif;
   --theme-body-font:    'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  --theme-twinkle-1: #facc15;
-  --theme-twinkle-2: #ef4444;
-  --theme-twinkle-3: #fde047;
-  --theme-twinkle-4: #f87171;
+  --theme-twinkle-1: #e30613;
+  --theme-twinkle-2: #ffffff;
+  --theme-twinkle-3: #b30410;
+  --theme-twinkle-4: #fafafa;
 
-  --theme-progress-from: #facc15;
-  --theme-progress-to:   #ef4444;
+  --theme-progress-from: #e30613;
+  --theme-progress-to:   #ffffff;
 }
 
 /* ============================================================
