@@ -20,11 +20,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.tv.material3.Card
 import androidx.tv.material3.CardDefaults
+import androidx.tv.material3.ExperimentalTvMaterial3Api
 import coil.compose.AsyncImage
 import dev.mimi.danceapp.data.Repository
 import dev.mimi.danceapp.ui.theme.Pink400
 import dev.mimi.danceapp.ui.theme.PinkLight
 
+@OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
 fun VideoCard(
     id: Int,
@@ -51,7 +53,7 @@ fun VideoCard(
                 shape = RoundedCornerShape(12.dp)
             ),
         shape = CardDefaults.shape(RoundedCornerShape(12.dp)),
-        colors = CardDefaults.colors(containerColor = Color.White)
+        colors = CardDefaults.colors(containerColor = Color.White, focusedContainerColor = Color.White)
     ) {
         Box {
             if (hasThumb) {
