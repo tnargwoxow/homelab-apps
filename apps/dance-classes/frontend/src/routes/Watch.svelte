@@ -6,6 +6,7 @@
   import type { VideoMeta } from '../lib/api';
   import Breadcrumb from '../components/Breadcrumb.svelte';
   import CastButton from '../components/CastButton.svelte';
+  import SelfReview from '../components/SelfReview.svelte';
   import { activeCast, castApi, refreshCastSoon, setCastLoop } from '../lib/cast';
   import { currentLocalVideo, pipTrack } from '../lib/pip';
   import { applyMediaSession, clearMediaSession } from '../lib/mediaSession';
@@ -42,6 +43,29 @@
   // Picture-in-picture state
   let pipEnabled = $state(false);
   let pipActive = $state(false);
+
+  // Self-review (webcam mirror + replay) state. The tile itself is fully
+  // self-contained; the parent only owns the toolbar pill + the compare-mode
+  // split-pane wiring.
+  let showSelfReview = $state(false);
+  let compareMode = $state(false);
+  let compareBlob = $state<Blob | null>(null);
+  let compareUrl = $state('');
+  let replayEl: HTMLVideoElement | null = $state(null);
+  let syncReplay = $state(true);
+
+  // Manage the object URL lifecycle imperatively so we can revoke the previous
+  // URL before swapping in a new one. $derived would leak the old URL.
+  $effect(() => {
+    const blob = compareBlob;
+    const next = blob ? URL.createObjectURL(blob) : '';
+    compareUrl = next;
+    return () => {
+      if (next) {
+        try { URL.revokeObjectURL(next); } catch { /* ignore */ }
+      }
+    };
+  });
 
   // Apply pitch preservation across browsers. Some engines reset this each
   // time playbackRate changes, so call this from setSpeed too.
@@ -118,6 +142,10 @@
     loopA = null;
     loopB = null;
     setCastLoop(null);
+    // Tear down compare mode too — the loaded clip belongs to the previous
+    // video and the SelfReview tile re-loads its clip list per-video.
+    compareMode = false;
+    compareBlob = null;
 
     api.video(id)
       .then(m => {
@@ -216,6 +244,15 @@
     // fires ~4×/sec which is precise enough for practice loops.
     if (videoEl && loopA !== null && loopB !== null && videoEl.currentTime >= loopB - 0.05) {
       try { videoEl.currentTime = loopA; } catch { /* ignore */ }
+    }
+    // Mirror the source position into the replay pane while comparing. We
+    // skip while casting because the local element is paused at 0 in that
+    // case and would yank the replay back to the start.
+    if (compareMode && syncReplay && replayEl && videoEl && !isCastingThisVideo) {
+      const drift = Math.abs(replayEl.currentTime - videoEl.currentTime);
+      if (drift > 0.25) {
+        try { replayEl.currentTime = videoEl.currentTime; } catch { /* ignore */ }
+      }
     }
     if (Date.now() - lastSaveTs < SAVE_INTERVAL_MS) return;
     saveNow();
@@ -548,18 +585,32 @@
     <div class="min-w-0">
       <div class="relative w-full max-w-full overflow-hidden rounded-3xl bg-black ring-2 shadow-lg"
            style="--tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
-        <video
-          bind:this={videoEl}
-          src={api.streamUrl(meta.id)}
-          controls
-          preload="metadata"
-          onloadedmetadata={onLoadedMeta}
-          ontimeupdate={onTimeUpdate}
-          onpause={onPause}
-          onseeked={onSeeked}
-          onended={onEnded}
-          class="aspect-video w-full bg-black"
-        ></video>
+        <div class={compareMode ? 'flex flex-col gap-1 sm:grid sm:grid-cols-2' : 'contents'}>
+          <video
+            bind:this={videoEl}
+            src={api.streamUrl(meta.id)}
+            controls
+            preload="metadata"
+            onloadedmetadata={onLoadedMeta}
+            ontimeupdate={onTimeUpdate}
+            onpause={onPause}
+            onseeked={onSeeked}
+            onended={onEnded}
+            class={compareMode ? 'h-auto w-full bg-black' : 'aspect-video w-full bg-black'}
+          ></video>
+          {#if compareMode && compareUrl}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <video
+              bind:this={replayEl}
+              src={compareUrl}
+              controls
+              muted
+              playsinline
+              preload="metadata"
+              class="h-auto w-full bg-black"
+            ></video>
+          {/if}
+        </div>
 
         {#if isCastingThisVideo && $activeCast}
           <div class="absolute inset-0 z-10 flex items-center justify-center bg-black/85 text-white">
@@ -625,6 +676,17 @@
                 onmouseover={pillHoverIn} onmouseout={pillHoverOut}
                 onclick={() => (showHandoff = true)}
                 aria-label="Hand off to another device">📱</button>
+
+        <button
+          type="button"
+          class={pillBase}
+          data-active={showSelfReview ? '1' : '0'}
+          style={showSelfReview ? pillActiveStyle : pillIdleStyle}
+          disabled={meta?.id === undefined}
+          onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+          onclick={() => (showSelfReview = !showSelfReview)}
+          title="Toggle self-review camera tile"
+        >📷 Mirror</button>
 
         <div class="relative">
           <button class={pillBase} style={pillIdleStyle}
@@ -775,6 +837,16 @@
       </ul>
     </aside>
   </div>
+
+  <SelfReview
+    videoId={meta?.id}
+    visible={showSelfReview}
+    {compareMode}
+    bind:syncReplay
+    onCompareToggle={(v) => (compareMode = v)}
+    onSelectClipBlob={(b) => (compareBlob = b)}
+    onClose={() => (showSelfReview = false)}
+  />
 {/if}
 
 {#if meta}
