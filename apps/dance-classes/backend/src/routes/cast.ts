@@ -84,6 +84,31 @@ export async function registerCastRoutes(
     catch (err) { return reply.code(500).send({ error: String((err as Error).message ?? err) }); }
   });
 
+  app.post<{ Body: { deviceId: string; level: number } }>('/api/cast/volume', async (req, reply) => {
+    const { deviceId, level } = req.body ?? ({} as { deviceId: string; level: number });
+    if (!deviceId || !Number.isFinite(level)) {
+      return reply.code(400).send({ error: 'deviceId and level (0..1) required' });
+    }
+    try { await cast.setVolume(deviceId, level); return { ok: true, level: Math.max(0, Math.min(1, level)) }; }
+    catch (err) { return reply.code(500).send({ error: String((err as Error).message ?? err) }); }
+  });
+
+  app.post<{ Body: { deviceId: string; delta: number } }>('/api/cast/volume/adjust', async (req, reply) => {
+    const { deviceId, delta } = req.body ?? ({} as { deviceId: string; delta: number });
+    if (!deviceId || !Number.isFinite(delta)) {
+      return reply.code(400).send({ error: 'deviceId and delta required' });
+    }
+    try { const level = await cast.adjustVolume(deviceId, delta); return { ok: true, level }; }
+    catch (err) { return reply.code(500).send({ error: String((err as Error).message ?? err) }); }
+  });
+
+  app.post<{ Body: { deviceId: string; muted: boolean } }>('/api/cast/mute', async (req, reply) => {
+    const { deviceId, muted } = req.body ?? ({} as { deviceId: string; muted: boolean });
+    if (!deviceId) return reply.code(400).send({ error: 'deviceId required' });
+    try { await cast.setMuted(deviceId, !!muted); return { ok: true, muted: !!muted }; }
+    catch (err) { return reply.code(500).send({ error: String((err as Error).message ?? err) }); }
+  });
+
   app.get<{ Querystring: { deviceId: string } }>('/api/cast/status', async req => {
     if (!req.query?.deviceId) return { status: null };
     return { status: await cast.getStatus(req.query.deviceId) };

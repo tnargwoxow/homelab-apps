@@ -216,6 +216,9 @@
       else if (k === 'l')            castApi.seek(cast.id, pos + 10).catch(() => {});
       else if (k === 'arrowleft')    castApi.seek(cast.id, Math.max(0, pos - 5)).catch(() => {});
       else if (k === 'arrowright')   castApi.seek(cast.id, pos + 5).catch(() => {});
+      else if (k === 'arrowup')   { e.preventDefault(); castApi.adjustVolume(cast.id, 0.05).catch(() => {}); }
+      else if (k === 'arrowdown') { e.preventDefault(); castApi.adjustVolume(cast.id, -0.05).catch(() => {}); }
+      else if (k === 'm')         { castApi.setMuted(cast.id, true).catch(() => {}); }
       else if (k >= '0' && k <= '9' && dur) {
         castApi.seek(cast.id, dur * (Number(k) / 10)).catch(() => {});
       } else if (k === 'n' && meta.nextId) { push(`/watch/${meta.nextId}`); }

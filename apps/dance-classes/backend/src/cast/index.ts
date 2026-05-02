@@ -288,6 +288,33 @@ export const pause  = (id: string) => callDevice(id, (d, cb) => d.pause(cb));
 export const resume = (id: string) => callDevice(id, (d, cb) => d.resume(cb));
 export const seekTo = (id: string, seconds: number) => callDevice(id, (d, cb) => d.seekTo(seconds, cb));
 
+interface VolumeAware {
+  setVolume: (level: number, cb: (e: Error | null) => void) => void;
+  setVolumeMuted: (muted: boolean, cb: (e: Error | null) => void) => void;
+  getVolume: (cb: (e: Error | null, v: { level?: number; muted?: boolean } | null) => void) => void;
+}
+
+export const setVolume = (id: string, level: number) =>
+  callDevice(id, (d, cb) => (d as unknown as VolumeAware).setVolume(Math.max(0, Math.min(1, level)), cb));
+
+export const setMuted = (id: string, muted: boolean) =>
+  callDevice(id, (d, cb) => (d as unknown as VolumeAware).setVolumeMuted(muted, cb));
+
+export async function adjustVolume(id: string, delta: number): Promise<number> {
+  const device = devices.get(id);
+  if (!device) throw new Error(`Cast device not found: ${id}`);
+  const v = await new Promise<{ level: number; muted: boolean }>((resolve) => {
+    (device as unknown as VolumeAware).getVolume((err, raw) => {
+      const level = (!err && raw && typeof raw.level === 'number') ? raw.level : 0.5;
+      const muted = (!err && raw && typeof raw.muted === 'boolean') ? raw.muted : false;
+      resolve({ level, muted });
+    });
+  });
+  const next = Math.max(0, Math.min(1, v.level + delta));
+  await setVolume(id, next);
+  return next;
+}
+
 export async function stop(deviceId: string): Promise<void> {
   await callDevice(deviceId, (d, cb) => d.stop(cb));
   sessions.delete(deviceId);

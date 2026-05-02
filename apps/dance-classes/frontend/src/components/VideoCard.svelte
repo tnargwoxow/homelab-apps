@@ -2,7 +2,9 @@
   import { link } from 'svelte-spa-router';
   import { api } from '../lib/api';
   import { formatDuration, progressRatio } from '../lib/format';
+  import { longpress } from '../lib/longpress';
   import ProgressBar from './ProgressBar.svelte';
+  import ActionSheet from './ActionSheet.svelte';
 
   interface Props {
     id: number;
@@ -13,9 +15,9 @@
     watched?: boolean;
     favorite?: boolean;
     episodeNum?: number | null;
-    /** Called after a successful progress reset so the parent can drop the
-     *  card from "Continue Watching" / "Recently Played" without a refetch. */
     onReset?: (id: number) => void;
+    onFavoriteChange?: (id: number, favorite: boolean) => void;
+    onWatchedChange?: (id: number, watched: boolean) => void;
   }
   let {
     id,
@@ -26,38 +28,85 @@
     watched = false,
     favorite = false,
     episodeNum = null,
-    onReset
+    onReset,
+    onFavoriteChange,
+    onWatchedChange
   }: Props = $props();
 
-  let ratio = $derived(progressRatio(position, durationSec));
-  let hasProgress = $derived(position > 5 || watched);
+  // Local state mirrors props but updates immediately on long-press actions
+  // so the user sees the badge change without waiting for a parent refetch.
+  let localFavorite = $state(favorite);
+  let localWatched  = $state(watched);
+  let localPosition = $state(position);
+
+  $effect(() => { localFavorite = favorite; });
+  $effect(() => { localWatched  = watched;  });
+  $effect(() => { localPosition = position; });
+
+  let ratio = $derived(progressRatio(localPosition, durationSec));
+  let hasProgress = $derived(localPosition > 5 || localWatched);
   let resetting = $state(false);
 
-  async function handleReset(e: Event) {
-    e.preventDefault();
-    e.stopPropagation();
+  let sheetOpen = $state(false);
+
+  async function handleReset() {
     if (resetting) return;
     resetting = true;
     try {
       await api.resetProgress(id);
+      localPosition = 0;
+      localWatched = false;
       onReset?.(id);
-    } catch {
-      /* idempotent on the backend; silent failure is fine */
-    } finally {
-      resetting = false;
-    }
+    } catch { /* ignore */ }
+    finally { resetting = false; }
   }
+
+  async function handleResetClick(e: Event) {
+    e.preventDefault();
+    e.stopPropagation();
+    await handleReset();
+  }
+
+  async function toggleFavorite() {
+    const next = !localFavorite;
+    try {
+      if (next) await api.addFavorite(id);
+      else      await api.removeFavorite(id);
+      localFavorite = next;
+      onFavoriteChange?.(id, next);
+    } catch { /* ignore */ }
+  }
+
+  async function toggleWatched() {
+    const next = !localWatched;
+    try {
+      await api.setWatched(id, next);
+      localWatched = next;
+      onWatchedChange?.(id, next);
+    } catch { /* ignore */ }
+  }
+
+  let actions = $derived([
+    {
+      icon: localFavorite ? '★' : '☆',
+      label: localFavorite ? 'Unfavorite' : 'Favorite',
+      onSelect: toggleFavorite
+    },
+    {
+      icon: localWatched ? '↺' : '✓',
+      label: localWatched ? 'Mark unwatched' : 'Mark as watched',
+      onSelect: toggleWatched
+    },
+    ...(hasProgress ? [{
+      icon: '✕',
+      label: 'Reset progress',
+      onSelect: handleReset,
+      style: 'danger' as const
+    }] : [])
+  ]);
 </script>
 
-<!--
-  The reset button must NOT live inside the <a>: svelte-spa-router's
-  link action attaches a click listener on the anchor that fires
-  unconditionally on bubbled clicks even when we stopPropagation in
-  the inner handler (a known quirk on touch browsers). Making the
-  button a sibling of the anchor — both absolutely positioned inside
-  the same wrapper — bypasses propagation entirely.
--->
-<div class="group relative block">
+<div class="group relative block" use:longpress={{ onLongPress: () => (sheetOpen = true) }}>
   <a use:link href={`/watch/${id}`} class="block">
     <div
       class="relative aspect-video w-full overflow-hidden rounded-2xl ring-1 shadow-sm transition group-hover:shadow-md"
@@ -73,7 +122,9 @@
           src={api.thumbUrl(id)}
           alt={title}
           loading="lazy"
+          draggable="false"
           class="absolute inset-0 h-full w-full object-cover transition group-hover:scale-[1.02]"
+          style="-webkit-user-drag: none; -webkit-touch-callout: none; user-select: none;"
         />
       {:else}
         <div class="absolute inset-0 flex items-center justify-center" style="color: var(--theme-card-ring);">
@@ -81,13 +132,13 @@
         </div>
       {/if}
 
-      {#if watched}
+      {#if localWatched}
         <div class="absolute right-2 top-2 rounded-full bg-emerald-400 p-1 text-white shadow ring-2 ring-white">
           <svg viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor"><path d="M7.629 14.571 3.5 10.443l1.414-1.414 2.715 2.714 7.457-7.457 1.414 1.414z"/></svg>
         </div>
       {/if}
 
-      {#if favorite}
+      {#if localFavorite}
         <div class="absolute left-2 top-2 rounded-full p-1 text-white shadow ring-2 ring-white" style="background: var(--theme-accent);">
           <svg viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor"><path d="M10 18 8.55 16.7C3.4 12.04 0 8.99 0 5.5 0 2.42 2.42 0 5.5 0c1.74 0 3.41.81 4.5 2.09C11.09.81 12.76 0 14.5 0 17.58 0 20 2.42 20 5.5c0 3.49-3.4 6.54-8.55 11.2z"/></svg>
         </div>
@@ -100,7 +151,7 @@
         </div>
       {/if}
 
-      {#if ratio > 0 && !watched}
+      {#if ratio > 0 && !localWatched}
         <ProgressBar {ratio} />
       {/if}
     </div>
@@ -112,8 +163,6 @@
   </a>
 
   {#if hasProgress}
-    <!-- Sibling of the anchor, NOT a descendant. Sized larger than the
-         old version so it's a comfortable touch target. -->
     <button
       type="button"
       class="absolute bottom-7 left-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-full text-white shadow-md transition disabled:opacity-50"
@@ -121,7 +170,7 @@
       disabled={resetting}
       aria-label="Remove from history"
       onpointerdown={(e) => e.stopPropagation()}
-      onclick={handleReset}
+      onclick={handleResetClick}
     >
       <svg viewBox="0 0 24 24" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
         <path d="M6 6l12 12M18 6L6 18"/>
@@ -129,3 +178,11 @@
     </button>
   {/if}
 </div>
+
+<ActionSheet
+  open={sheetOpen}
+  title={title}
+  subtitle="Hold-to-action"
+  actions={actions}
+  onClose={() => (sheetOpen = false)}
+/>

@@ -84,6 +84,30 @@
       </div>
     </div>
 
+    <!-- Volume row -->
+    <div class="mt-2 flex items-center gap-1.5">
+      <span class="text-base">🔊</span>
+      <button
+        type="button"
+        class="rounded-full px-2 py-1 text-xs ring-1"
+        style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+        aria-label="Volume down"
+        disabled={busy}
+        onclick={() => safeCall(() => castApi.adjustVolume($activeCast!.id, -0.05))}
+      >−</button>
+      <button
+        type="button"
+        class="rounded-full px-2 py-1 text-xs ring-1"
+        style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+        aria-label="Volume up"
+        disabled={busy}
+        onclick={() => safeCall(() => castApi.adjustVolume($activeCast!.id, 0.05))}
+      >+</button>
+      <span class="ml-1 text-[10px]" style="color: var(--theme-text-muted);">
+        TV volume · phone hardware buttons stay on phone
+      </span>
+    </div>
+
     <!-- Scrub bar: a styled <input type=range> so we get native touch +
          mouse drag for free. Local dragValue prevents the slider from
          snapping back to the polled position while the user is moving. -->

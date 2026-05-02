@@ -65,7 +65,13 @@ export const castApi = {
     post<{ ok: boolean }>('/api/cast/seek', { deviceId, position }),
   stop:    (deviceId: string) => post<{ ok: boolean }>('/api/cast/stop', { deviceId }),
   status:  (deviceId: string) =>
-    get<{ status: CastSession | null }>(`/api/cast/status?deviceId=${encodeURIComponent(deviceId)}`)
+    get<{ status: CastSession | null }>(`/api/cast/status?deviceId=${encodeURIComponent(deviceId)}`),
+  setVolume: (deviceId: string, level: number) =>
+    post<{ ok: boolean; level: number }>('/api/cast/volume', { deviceId, level }),
+  adjustVolume: (deviceId: string, delta: number) =>
+    post<{ ok: boolean; level: number }>('/api/cast/volume/adjust', { deviceId, delta }),
+  setMuted: (deviceId: string, muted: boolean) =>
+    post<{ ok: boolean; muted: boolean }>('/api/cast/mute', { deviceId, muted })
 };
 
 export const castAvailable = writable(true);
