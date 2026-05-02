@@ -3,6 +3,7 @@
   import { routes } from './router';
   import { libraryStatus, startStatusPolling, theme } from './lib/stores';
   import { startCastPolling } from './lib/cast';
+  import { initAutoPip } from './lib/pip';
   import { onMount } from 'svelte';
   import SearchBar from './components/SearchBar.svelte';
   import BalletShoe from './components/BalletShoe.svelte';
@@ -13,6 +14,7 @@
   import CastNowPlaying from './components/CastNowPlaying.svelte';
 
   onMount(() => {
+    initAutoPip();
     const stopStatus = startStatusPolling(7000);
     const stopCast = startCastPolling(5000);
     return () => { stopStatus(); stopCast(); };

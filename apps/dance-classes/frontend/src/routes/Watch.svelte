@@ -7,6 +7,7 @@
   import Breadcrumb from '../components/Breadcrumb.svelte';
   import CastButton from '../components/CastButton.svelte';
   import { activeCast, castApi, refreshCastSoon, setCastLoop } from '../lib/cast';
+  import { currentLocalVideo } from '../lib/pip';
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
 
@@ -348,16 +349,20 @@
 
   // Bind PiP enter/leave events on the local <video> so the UI stays in sync
   // with the browser's native PiP toggle (e.g. user closes the floating
-  // window via its own X button).
+  // window via its own X button). Also publish the live element to the
+  // pip lib so the global click handler can promote it to PiP if the user
+  // navigates away while it's playing.
   $effect(() => {
     if (!videoEl) return;
     const onEnter = () => { pipActive = true; };
     const onLeave = () => { pipActive = false; };
     videoEl.addEventListener('enterpictureinpicture', onEnter);
     videoEl.addEventListener('leavepictureinpicture', onLeave);
+    currentLocalVideo.set(videoEl);
     return () => {
       videoEl?.removeEventListener('enterpictureinpicture', onEnter);
       videoEl?.removeEventListener('leavepictureinpicture', onLeave);
+      currentLocalVideo.set(null);
     };
   });
 
