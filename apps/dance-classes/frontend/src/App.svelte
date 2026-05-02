@@ -12,6 +12,7 @@
   import Mascot from './components/Mascot.svelte';
   import ThemeSelector from './components/ThemeSelector.svelte';
   import CastNowPlaying from './components/CastNowPlaying.svelte';
+  import PipNowPlaying from './components/PipNowPlaying.svelte';
 
   onMount(() => {
     initAutoPip();
@@ -96,4 +97,5 @@
   </footer>
 
   <CastNowPlaying />
+  <PipNowPlaying />
 </div>

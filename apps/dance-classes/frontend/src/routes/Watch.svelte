@@ -7,7 +7,8 @@
   import Breadcrumb from '../components/Breadcrumb.svelte';
   import CastButton from '../components/CastButton.svelte';
   import { activeCast, castApi, refreshCastSoon, setCastLoop } from '../lib/cast';
-  import { currentLocalVideo } from '../lib/pip';
+  import { currentLocalVideo, pipTrack } from '../lib/pip';
+  import { applyMediaSession, clearMediaSession } from '../lib/mediaSession';
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
 
@@ -354,16 +355,127 @@
   // navigates away while it's playing.
   $effect(() => {
     if (!videoEl) return;
-    const onEnter = () => { pipActive = true; };
-    const onLeave = () => { pipActive = false; };
+    const onEnter = () => {
+      pipActive = true;
+      // Tell the global "now playing" bar what's in the floating window.
+      if (meta) {
+        pipTrack.set({
+          id: meta.id,
+          title: meta.title,
+          thumbUrl: api.thumbUrl(meta.id),
+          folderId: meta.folderId
+        });
+      }
+    };
+    const onLeave = () => {
+      pipActive = false;
+      pipTrack.set(null);
+    };
+    const onPlayEv  = () => updateMediaSession();
+    const onPauseEv = () => updateMediaSession();
+    const onRateEv  = () => updateMediaSession();
     videoEl.addEventListener('enterpictureinpicture', onEnter);
     videoEl.addEventListener('leavepictureinpicture', onLeave);
+    videoEl.addEventListener('play', onPlayEv);
+    videoEl.addEventListener('pause', onPauseEv);
+    videoEl.addEventListener('ratechange', onRateEv);
     currentLocalVideo.set(videoEl);
     return () => {
       videoEl?.removeEventListener('enterpictureinpicture', onEnter);
       videoEl?.removeEventListener('leavepictureinpicture', onLeave);
+      videoEl?.removeEventListener('play', onPlayEv);
+      videoEl?.removeEventListener('pause', onPauseEv);
+      videoEl?.removeEventListener('ratechange', onRateEv);
       currentLocalVideo.set(null);
     };
+  });
+
+  // ---------------------------------------------------------------------------
+  // MediaSession integration: push metadata + remote-control handlers to the
+  // OS so the lock screen, notification shade, Bluetooth headphones, etc.
+  // can drive the current video.
+  // ---------------------------------------------------------------------------
+  function updateMediaSession() {
+    if (!meta) return;
+    const cast = get(activeCast);
+    const castingHere = !!(cast?.session && cast.session.videoId === meta.id);
+
+    // Pull artist + album from the breadcrumb. Last crumb is the immediate
+    // parent folder (closest to artist); first crumb is the top-level
+    // category (closest to album).
+    const crumbs = meta.breadcrumb ?? [];
+    const artist = crumbs.length ? crumbs[crumbs.length - 1].name : '';
+    const album  = crumbs.length ? crumbs[0].name : '';
+
+    const playing = castingHere
+      ? cast!.session!.state === 'playing' || cast!.session!.state === 'buffering'
+      : !!videoEl && !videoEl.paused && !videoEl.ended;
+
+    const duration = castingHere
+      ? cast!.session!.duration
+      : (videoEl && Number.isFinite(videoEl.duration) ? videoEl.duration : meta.durationSec);
+
+    const position = castingHere
+      ? cast!.session!.position ?? 0
+      : (videoEl?.currentTime ?? 0);
+
+    const rate = castingHere ? 1 : (videoEl?.playbackRate ?? 1);
+
+    applyMediaSession({
+      title: meta.title,
+      artist,
+      album,
+      artworkUrl: api.thumbUrl(meta.id),
+      duration: typeof duration === 'number' && duration > 0 ? duration : null,
+      position,
+      playbackRate: rate,
+      playing,
+      handlers: {
+        onPlay:  () => {
+          if (castingHere) castApi.resume(cast!.id).catch(() => {});
+          else videoEl?.play().catch(() => {});
+        },
+        onPause: () => {
+          if (castingHere) castApi.pause(cast!.id).catch(() => {});
+          else videoEl?.pause();
+        },
+        onSeekBackward: (sec) => {
+          const cur = position;
+          const target = Math.max(0, cur - (sec || 10));
+          if (castingHere) castApi.seek(cast!.id, target).catch(() => {});
+          else if (videoEl) videoEl.currentTime = target;
+        },
+        onSeekForward: (sec) => {
+          const cur = position;
+          const cap = duration ?? Number.POSITIVE_INFINITY;
+          const target = Math.min(cap, cur + (sec || 10));
+          if (castingHere) castApi.seek(cast!.id, target).catch(() => {});
+          else if (videoEl) videoEl.currentTime = target;
+        },
+        onSeekTo: (t) => {
+          if (castingHere) castApi.seek(cast!.id, t).catch(() => {});
+          else if (videoEl) videoEl.currentTime = t;
+        },
+        onNextTrack:     meta.nextId ? () => push(`/watch/${meta!.nextId}`) : null,
+        onPreviousTrack: meta.prevId ? () => push(`/watch/${meta!.prevId}`) : null
+      }
+    });
+  }
+
+  // Re-publish whenever the meta-driving inputs change, plus once on mount.
+  $effect(() => {
+    if (!meta) return;
+    // Subscribe to activeCast updates so cast play/pause flips also update OS.
+    void $activeCast;
+    updateMediaSession();
+  });
+
+  onDestroy(() => {
+    // Only clear the OS media session if we're not handing it off to PiP.
+    // When PiP is active the same <video> is still playing, so we want the
+    // metadata to remain — leaving and re-entering Watch is normal.
+    const doc = document as Document & { pictureInPictureElement?: Element | null };
+    if (!doc.pictureInPictureElement) clearMediaSession();
   });
 
   async function togglePip() {

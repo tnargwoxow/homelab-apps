@@ -4,6 +4,28 @@ import { writable, get } from 'svelte/store';
 // Watch.svelte registers it on mount and clears on unmount.
 export const currentLocalVideo = writable<HTMLVideoElement | null>(null);
 
+// Lightweight metadata about the most recently played local video — kept
+// alive across route changes so a global "now playing" bar can render even
+// after Watch.svelte has unmounted (e.g. while the user is browsing other
+// folders with PiP active).
+export interface PipTrack {
+  id: number;
+  title: string;
+  thumbUrl: string;
+  folderId: number | null;
+}
+export const pipTrack = writable<PipTrack | null>(null);
+
+// Whether the browser is currently showing a PiP window. Updated by global
+// document listeners + a visibility-change re-check (some browsers detach
+// the PiP window on tab hide/show without firing leavepictureinpicture).
+export const pipActive = writable<boolean>(false);
+
+function syncPipActive() {
+  const doc = document as Document & { pictureInPictureElement?: Element | null };
+  pipActive.set(!!doc.pictureInPictureElement);
+}
+
 // Listen for clicks that navigate the user *away* from the Watch route while
 // the local <video> is playing, and silently promote it to picture-in-picture
 // before the route change. The click itself is the user gesture that the
@@ -13,6 +35,16 @@ let initialized = false;
 export function initAutoPip(): void {
   if (initialized || typeof document === 'undefined') return;
   initialized = true;
+
+  // Track PiP state at the document level so any component can read it.
+  document.addEventListener('enterpictureinpicture', syncPipActive, true);
+  document.addEventListener('leavepictureinpicture', () => {
+    syncPipActive();
+    // PiP closing also means whatever was queued as "now playing" is gone.
+    pipTrack.set(null);
+  }, true);
+  document.addEventListener('visibilitychange', syncPipActive);
+  syncPipActive();
 
   document.addEventListener(
     'click',
