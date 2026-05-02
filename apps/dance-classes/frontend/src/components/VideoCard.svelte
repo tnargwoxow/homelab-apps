@@ -13,6 +13,9 @@
     watched?: boolean;
     favorite?: boolean;
     episodeNum?: number | null;
+    /** Called after a successful progress reset so the parent can drop the
+     *  card from "Continue Watching" / "Recently Played" without a refetch. */
+    onReset?: (id: number) => void;
   }
   let {
     id,
@@ -22,10 +25,28 @@
     position = 0,
     watched = false,
     favorite = false,
-    episodeNum = null
+    episodeNum = null,
+    onReset
   }: Props = $props();
 
   let ratio = $derived(progressRatio(position, durationSec));
+  let hasProgress = $derived(position > 5 || watched);
+  let resetting = $state(false);
+
+  async function handleReset(e: MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (resetting) return;
+    resetting = true;
+    try {
+      await api.resetProgress(id);
+      onReset?.(id);
+    } catch {
+      /* the reset is idempotent on the backend; silent failure is fine */
+    } finally {
+      resetting = false;
+    }
+  }
 </script>
 
 <a use:link href={`/watch/${id}`} class="group block">
@@ -61,6 +82,21 @@
       <div class="absolute left-2 top-2 rounded-full p-1 text-white shadow ring-2 ring-white" style="background: var(--theme-accent);">
         <svg viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor"><path d="M10 18 8.55 16.7C3.4 12.04 0 8.99 0 5.5 0 2.42 2.42 0 5.5 0c1.74 0 3.41.81 4.5 2.09C11.09.81 12.76 0 14.5 0 17.58 0 20 2.42 20 5.5c0 3.49-3.4 6.54-8.55 11.2z"/></svg>
       </div>
+    {/if}
+
+    {#if hasProgress}
+      <button
+        type="button"
+        class="absolute bottom-1.5 left-1.5 flex h-7 w-7 items-center justify-center rounded-full text-white shadow-sm transition disabled:opacity-50"
+        style="background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);"
+        disabled={resetting}
+        aria-label="Remove from history"
+        onclick={handleReset}
+      >
+        <svg viewBox="0 0 24 24" class="h-3.5 w-3.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M6 6l12 12M18 6L6 18"/>
+        </svg>
+      </button>
     {/if}
 
     {#if durationSec}

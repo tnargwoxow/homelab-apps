@@ -84,7 +84,7 @@ try {
   await app.listen({ port: config.port, host: config.host });
   app.log.info({ videosDir: config.videosDir, dataDir: config.dataDir }, 'server listening');
   startScanner({ db, videosDir: config.videosDir, thumbDir: config.thumbDir, probeConcurrency: config.probeConcurrency, thumbConcurrency: config.thumbConcurrency, logger: app.log });
-  startCast(app.log);
+  startCast(app.log, db);
 } catch (err) {
   app.log.error({ err }, 'failed to start');
   process.exit(1);

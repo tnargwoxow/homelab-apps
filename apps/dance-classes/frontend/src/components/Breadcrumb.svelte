@@ -8,17 +8,21 @@
   }
   let { items, final = null }: Props = $props();
 
-  // Wrap-anywhere keeps long folder names from blowing out the viewport on
-  // mobile (which then makes the entire page scroll horizontally).
+  // Crucial: in flex containers, children default to `min-width: auto`,
+  // which prevents them shrinking below their content's intrinsic width
+  // — so a long folder name like "Intermediate-Advanced Brazilian Zouk
+  // Arthur&Sara" makes the entire layout exceed the viewport even with
+  // `flex-wrap`. We force `min-width: 0` so the chip can shrink, then
+  // `overflow-wrap: anywhere` lets the text break inside.
+  const chipShared =
+    'min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word;';
   const chipStyleActive =
-    'background: var(--theme-pill-hover); color: var(--theme-text-strong); ' +
-    'overflow-wrap: anywhere; word-break: break-word; max-width: 100%;';
+    'background: var(--theme-pill-hover); color: var(--theme-text-strong); ' + chipShared;
   const chipStyleLink =
-    'color: var(--theme-text-muted); ' +
-    'overflow-wrap: anywhere; word-break: break-word; max-width: 100%;';
+    'color: var(--theme-text-muted); ' + chipShared;
 </script>
 
-<nav class="flex max-w-full flex-wrap items-center gap-1 text-sm" style="color: var(--theme-text-muted);">
+<nav class="flex max-w-full flex-wrap items-center gap-1 text-sm" style="color: var(--theme-text-muted); min-width: 0;">
   <a use:link href="/" class="rounded-full px-2 py-0.5 hover:opacity-100" style="opacity: 0.85;">Home</a>
   {#each items as item, i (item.id)}
     <span style="color: var(--theme-card-ring);">·</span>

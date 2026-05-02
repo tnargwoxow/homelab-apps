@@ -116,6 +116,8 @@ export const api = {
   rescan: () => send<{ ok: boolean }>('/api/library/rescan', 'POST'),
   saveProgress: (id: number, position: number, duration: number | null) =>
     send<{ ok: boolean }>(`/api/videos/${id}/progress`, 'POST', { position, duration }),
+  resetProgress: (id: number) =>
+    send<{ ok: boolean }>(`/api/videos/${id}/progress`, 'DELETE'),
   setWatched: (id: number, watched: boolean) =>
     send<{ ok: boolean; watched: boolean }>(`/api/videos/${id}/watched`, 'POST', { watched }),
   addFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'POST'),

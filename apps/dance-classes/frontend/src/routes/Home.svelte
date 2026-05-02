@@ -81,6 +81,10 @@
             hasThumb={v.hasThumb}
             position={v.position}
             watched={v.watched}
+            onReset={(rid) => {
+              continueItems = continueItems.filter(x => x.id !== rid);
+              recent        = recent.filter(x => x.id !== rid);
+            }}
           />
         {/each}
       </div>
@@ -126,6 +130,10 @@
             hasThumb={v.hasThumb}
             position={v.position}
             watched={v.watched}
+            onReset={(rid) => {
+              continueItems = continueItems.filter(x => x.id !== rid);
+              recent        = recent.filter(x => x.id !== rid);
+            }}
           />
         {/each}
       </div>

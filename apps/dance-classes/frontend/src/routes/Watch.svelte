@@ -133,7 +133,11 @@
     if (!meta || !videoEl) return;
     const dur = Number.isFinite(videoEl.duration) ? videoEl.duration : meta.durationSec;
     api.saveProgress(meta.id, dur ?? videoEl.currentTime, dur).catch(() => {});
-    if (meta.nextId) startAutoplayCountdown(meta.nextId);
+    // Hitting the natural end is the only way the local player flips watched
+    // automatically; the backend's progress endpoint won't.
+    api.setWatched(meta.id, true).catch(() => {});
+    if (meta) meta = { ...meta, progress: { ...meta.progress, watched: true } };
+    if (meta?.nextId) startAutoplayCountdown(meta.nextId);
   }
 
   function startAutoplayCountdown(nextId: number) {
@@ -155,6 +159,20 @@
     const next = !meta.progress.watched;
     await api.setWatched(meta.id, next);
     meta = { ...meta, progress: { ...meta.progress, watched: next } };
+  }
+
+  async function resetProgress() {
+    if (!meta) return;
+    try {
+      await api.resetProgress(meta.id);
+      meta = { ...meta, progress: { position: 0, duration: meta.progress.duration, watched: false } };
+      try { if (videoEl) videoEl.currentTime = 0; } catch { /* ignore */ }
+      const cast = get(activeCast);
+      if (cast?.session?.videoId === meta.id) {
+        await castApi.seek(cast.id, 0);
+      }
+      showResumeBanner = false;
+    } catch { /* ignore */ }
   }
 
   async function toggleFavorite() {
@@ -274,9 +292,9 @@
     <Breadcrumb items={meta.breadcrumb} final={meta.title} />
   </div>
 
-  <div class="grid gap-6 lg:grid-cols-[1fr_300px]">
-    <div>
-      <div class="relative overflow-hidden rounded-3xl bg-black ring-2 shadow-lg"
+  <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_300px]">
+    <div class="min-w-0">
+      <div class="relative w-full max-w-full overflow-hidden rounded-3xl bg-black ring-2 shadow-lg"
            style="--tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
         <video
           bind:this={videoEl}
@@ -393,11 +411,19 @@
         </button>
       </div>
 
-      <div class="mt-3 flex gap-2">
+      <div class="mt-3 flex flex-wrap items-center gap-2">
         {#if meta.prevId}
           <a use:link href={`/watch/${meta.prevId}`} class={pillBase} style={pillIdleStyle}
              onmouseover={pillHoverIn} onmouseout={pillHoverOut}>← Previous</a>
         {/if}
+        <button
+          type="button"
+          class={pillBase}
+          style={pillIdleStyle}
+          onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+          onclick={resetProgress}
+          title="Reset progress and remove from Recently Played"
+        >↺ Reset</button>
         {#if meta.nextId}
           <a use:link href={`/watch/${meta.nextId}`} class="ml-auto {pillBase}" style={pillIdleStyle}
              onmouseover={pillHoverIn} onmouseout={pillHoverOut}>Next →</a>

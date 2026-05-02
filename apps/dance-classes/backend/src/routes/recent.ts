@@ -41,6 +41,7 @@ export async function registerRecentRoutes(
         v.folder_id,
         p.position_seconds, p.duration_seconds, p.watched, p.updated_at
       FROM progress p JOIN videos v ON v.id = p.video_id
+      WHERE p.watched = 0
       ORDER BY p.updated_at DESC
       LIMIT ?
     `).all(limit);

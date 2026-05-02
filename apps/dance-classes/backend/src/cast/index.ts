@@ -2,6 +2,7 @@ import ChromecastAPI from 'chromecast-api';
 import type { CastDevice } from 'chromecast-api';
 import { createRequire } from 'node:module';
 import type { Logger } from '../types.js';
+import type { DB } from '../db/index.js';
 
 // chromecast-api 0.4.x is built on castv2-client / castv2 / multicast-dns.
 // We need to reach into a couple of those for runtime fixes.
@@ -108,8 +109,24 @@ const STATUS_TTL_MS = 1000;
 
 let api: ChromecastAPI | null = null;
 let logger: Logger | null = null;
+let dbRef: DB | null = null;
 const devices = new Map<string, CastDevice>();
 const sessions = new Map<string, InternalSession>();
+
+function markWatchedInDb(videoId: number): void {
+  if (!dbRef) return;
+  try {
+    dbRef.prepare(`
+      INSERT INTO progress(video_id, watched, position_seconds, updated_at)
+      VALUES (?, 1, 0, unixepoch())
+      ON CONFLICT(video_id) DO UPDATE SET
+        watched = 1,
+        updated_at = unixepoch()
+    `).run(videoId);
+  } catch (err) {
+    logger?.warn?.({ err, videoId }, 'failed to mark cast video as watched');
+  }
+}
 
 function buildIdleStatus(deviceId: string, opts: { videoId: number; title: string; duration: number | null; startedAt: number; state?: CastPlayerState; position?: number }): CastSessionStatus {
   return {
@@ -123,8 +140,9 @@ function buildIdleStatus(deviceId: string, opts: { videoId: number; title: strin
   };
 }
 
-export function startCast(log: Logger): void {
+export function startCast(log: Logger, db?: DB): void {
   logger = log;
+  dbRef = db ?? null;
   try {
     api = new ChromecastAPI();
   } catch (err) {
@@ -157,7 +175,9 @@ async function onDeviceDiscovered(device: CastDevice): Promise<void> {
 
   try {
     device.on('finished', () => {
-      logger?.info?.({ host: device.host }, 'cast playback finished');
+      const session = sessions.get(device.host);
+      logger?.info?.({ host: device.host, videoId: session?.videoId }, 'cast playback finished');
+      if (session) markWatchedInDb(session.videoId);
       sessions.delete(device.host);
     });
     device.on('disconnected', () => {
