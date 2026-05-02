@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginOptions, FastifyRequest } from 'fastify';
 import * as cast from '../cast/index.js';
+import * as castQueue from '../cast/queue.js';
 import type { DB } from '../db/index.js';
 
 interface VideoRow {
@@ -112,5 +113,77 @@ export async function registerCastRoutes(
   app.get<{ Querystring: { deviceId: string } }>('/api/cast/status', async req => {
     if (!req.query?.deviceId) return { status: null };
     return { status: await cast.getStatus(req.query.deviceId) };
+  });
+
+  // -------------------------------------------------------------------------
+  // Cast queue: a flat list of videoIds played back-to-back on a device.
+  // Auto-advance happens server-side via the chromecast 'finished' event.
+  // -------------------------------------------------------------------------
+  interface QueueBody {
+    deviceId: string;
+    videoIds: number[];
+    startIndex?: number;
+    position?: number;
+  }
+  app.post<{ Body: QueueBody }>('/api/cast/queue', async (req, reply) => {
+    const { deviceId, videoIds, startIndex, position } = req.body ?? ({} as QueueBody);
+    if (!deviceId || !Array.isArray(videoIds) || videoIds.length === 0) {
+      return reply.code(400).send({ error: 'deviceId and non-empty videoIds[] required' });
+    }
+    if (videoIds.some(v => !Number.isFinite(v))) {
+      return reply.code(400).send({ error: 'videoIds must be numbers' });
+    }
+
+    // Validate every videoId exists before we lock anything in.
+    const placeholders = videoIds.map(() => '?').join(',');
+    const found = db
+      .prepare<number[], { id: number }>(`SELECT id FROM videos WHERE id IN (${placeholders})`)
+      .all(...videoIds);
+    if (found.length !== new Set(videoIds).size) {
+      return reply.code(400).send({ error: 'one or more videoIds do not exist' });
+    }
+
+    const safeStart = Number.isFinite(startIndex)
+      ? Math.max(0, Math.min(Number(startIndex), videoIds.length - 1))
+      : 0;
+    const firstVideoId = videoIds[safeStart];
+
+    const urlBase = (process.env.PUBLIC_BASE_URL ?? `http://${req.headers.host ?? '127.0.0.1'}`).replace(/\/$/, '');
+    castQueue.setQueue(deviceId, videoIds, urlBase, safeStart);
+
+    const video = db
+      .prepare<[number], VideoRow>('SELECT id, display_title, duration_sec FROM videos WHERE id = ?')
+      .get(firstVideoId);
+    if (!video) {
+      castQueue.clearQueue(deviceId);
+      return reply.code(404).send({ error: 'Video not found' });
+    }
+
+    const url = buildStreamUrl(req, video.id);
+    try {
+      await cast.play(deviceId, url, {
+        title: video.display_title,
+        videoId: video.id,
+        durationSec: video.duration_sec,
+        startTime: position
+      });
+      return { ok: true, queued: videoIds.length };
+    } catch (err) {
+      castQueue.clearQueue(deviceId);
+      return reply.code(500).send({ error: String((err as Error).message ?? err) });
+    }
+  });
+
+  app.delete<{ Body: DeviceBody }>('/api/cast/queue', async (req, reply) => {
+    const { deviceId } = req.body ?? ({} as DeviceBody);
+    if (!deviceId) return reply.code(400).send({ error: 'deviceId required' });
+    castQueue.clearQueue(deviceId);
+    return { ok: true };
+  });
+
+  app.get<{ Querystring: { deviceId: string } }>('/api/cast/queue', async req => {
+    const id = req.query?.deviceId;
+    if (!id) return { queue: null };
+    return { queue: castQueue.getQueue(id) ?? null };
   });
 }

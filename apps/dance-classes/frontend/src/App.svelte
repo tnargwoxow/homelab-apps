@@ -19,8 +19,12 @@
   import WeeklyGoals from './components/WeeklyGoals.svelte';
   import BottomNav from './components/BottomNav.svelte';
   import StatsListModal from './components/StatsListModal.svelte';
+  import QueueController from './components/QueueController.svelte';
+  import ClassBuilder from './components/ClassBuilder.svelte';
+  import { currentQueue } from './lib/queue';
 
   let errorsModalOpen = $state(false);
+  let builderOpen = $state(false);
 
   onMount(() => {
     initAutoPip();
@@ -73,12 +77,28 @@
         <a use:link href="/favorites" class="rounded-full px-3 py-1.5"
            onmouseover={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)')}
            onmouseout={(e)  => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}>{$theme.sections.favorites}</a>
+        <a use:link href="/playlists" class="rounded-full px-3 py-1.5"
+           onmouseover={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)')}
+           onmouseout={(e)  => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}>📋 Playlists</a>
         <a use:link href="/stats" class="rounded-full px-3 py-1.5"
            onmouseover={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)')}
            onmouseout={(e)  => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}>📈 Stats</a>
       </nav>
       <div class="ml-auto flex min-w-0 shrink items-center gap-2 sm:max-w-md sm:flex-1">
         <div class="min-w-0 flex-1"><SearchBar /></div>
+        {#if $currentQueue && $currentQueue.items.length > 0}
+          <button
+            type="button"
+            class="flex shrink-0 items-center gap-1 rounded-full px-2.5 py-1 text-sm font-semibold ring-1 transition"
+            style="background: var(--theme-pill-bg);
+                   --tw-ring-color: var(--theme-pill-ring);
+                   border-color: var(--theme-pill-ring);
+                   color: var(--theme-pill-text);"
+            title="Open current class queue"
+            aria-label="Open current class queue"
+            onclick={() => (builderOpen = true)}
+          >📋 {$currentQueue.items.length}</button>
+        {/if}
         {#if $streakState.current > 0}
           <div class="hidden md:flex items-center gap-1 rounded-full px-2 py-1 ring-1"
                style="background: var(--theme-pill-bg);
@@ -131,6 +151,8 @@
   <BottomNav />
   <CastNowPlaying />
   <PipNowPlaying />
+  <QueueController />
+  <ClassBuilder open={builderOpen} onClose={() => (builderOpen = false)} />
   <Celebration />
 
   <StatsListModal

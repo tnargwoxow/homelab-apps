@@ -152,6 +152,22 @@ export interface LibraryErrorItem {
   updatedAt: number;
 }
 
+// Playlist types — actual fetchers live in lib/queue.ts so the api.ts diff
+// stays small and merge-friendly.
+export interface PlaylistSummary {
+  id: number;
+  name: string;
+  itemCount: number;
+  totalSeconds: number;
+  updatedAt: number;
+}
+export interface PlaylistDetail {
+  id: number;
+  name: string;
+  updatedAt: number;
+  items: VideoListItem[];
+}
+
 async function describeError(res: Response): Promise<string> {
   try {
     const data = await res.clone().json();

@@ -3,6 +3,7 @@ import type { CastDevice } from 'chromecast-api';
 import { createRequire } from 'node:module';
 import type { Logger } from '../types.js';
 import type { DB } from '../db/index.js';
+import { advance as advanceQueue, clearQueue } from './queue.js';
 
 // chromecast-api 0.4.x is built on castv2-client / castv2 / multicast-dns.
 // We need to reach into a couple of those for runtime fixes.
@@ -178,11 +179,38 @@ async function onDeviceDiscovered(device: CastDevice): Promise<void> {
       const session = sessions.get(device.host);
       logger?.info?.({ host: device.host, videoId: session?.videoId }, 'cast playback finished');
       if (session) markWatchedInDb(session.videoId);
+
+      // If a queue is in flight, auto-advance to the next item *before* we
+      // drop the session, so the front-end sees one continuous "playing"
+      // state across track boundaries.
+      const next = advanceQueue(device.host);
+      if (next && dbRef) {
+        const row = dbRef
+          .prepare<[number], { id: number; display_title: string; duration_sec: number | null }>(
+            'SELECT id, display_title, duration_sec FROM videos WHERE id = ?'
+          )
+          .get(next.videoId);
+        if (row) {
+          const url = `${next.urlBase.replace(/\/$/, '')}/api/videos/${row.id}/stream`;
+          play(device.host, url, {
+            title: row.display_title,
+            videoId: row.id,
+            durationSec: row.duration_sec
+          }).catch(err => {
+            logger?.warn?.({ err, videoId: row.id }, 'cast queue auto-advance failed');
+            sessions.delete(device.host);
+          });
+          return;
+        }
+        logger?.warn?.({ videoId: next.videoId }, 'cast queue advance: video not found');
+      }
+
       sessions.delete(device.host);
     });
     device.on('disconnected', () => {
       logger?.info?.({ host: device.host }, 'cast device disconnected');
       sessions.delete(device.host);
+      clearQueue(device.host);
     });
     device.on('error', (...args: unknown[]) => {
       logger?.warn?.({ host: device.host, err: args[0] }, 'cast device error');

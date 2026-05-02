@@ -14,6 +14,7 @@
   import { theme } from '../lib/stores';
   import { celebrate } from '../lib/celebrate';
   import HandoffSheet from '../components/HandoffSheet.svelte';
+  import { currentQueue } from '../lib/queue';
 
   interface Props { params?: { id?: string }; }
   let { params }: Props = $props();
@@ -270,6 +271,14 @@
     api.setWatched(meta.id, true).catch(() => {});
     if (meta) meta = { ...meta, progress: { ...meta.progress, watched: true } };
     celebrate('small');
+    // If a class queue is active and there's a next item in it, prefer that
+    // over the natural sibling-by-sibling autoplay chain.
+    const q = get(currentQueue);
+    if (q && q.index + 1 < q.items.length) {
+      currentQueue.update(x => x ? { ...x, index: x.index + 1 } : x);
+      startAutoplayCountdown(q.items[q.index + 1].id);
+      return;
+    }
     if (meta?.nextId) startAutoplayCountdown(meta.nextId);
   }
 

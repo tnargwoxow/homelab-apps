@@ -1,8 +1,10 @@
 <script lang="ts">
   import { link } from 'svelte-spa-router';
   import { api } from '../lib/api';
+  import type { VideoListItem } from '../lib/api';
   import { formatDuration, progressRatio } from '../lib/format';
   import { longpress } from '../lib/longpress';
+  import { currentQueue } from '../lib/queue';
   import ProgressBar from './ProgressBar.svelte';
   import ActionSheet from './ActionSheet.svelte';
 
@@ -86,6 +88,24 @@
     } catch { /* ignore */ }
   }
 
+  function addToQueue() {
+    const item: VideoListItem = {
+      id,
+      title,
+      episodeNum: episodeNum ?? null,
+      filename: '',
+      durationSec: durationSec ?? null,
+      hasThumb,
+      scanStatus: 'ready',
+      position: localPosition,
+      watched: localWatched,
+      favorite: localFavorite
+    };
+    currentQueue.update(q => q
+      ? { ...q, items: [...q.items, item] }
+      : { items: [item], index: 0 });
+  }
+
   let actions = $derived([
     {
       icon: localFavorite ? '★' : '☆',
@@ -102,7 +122,12 @@
       label: 'Reset progress',
       onSelect: handleReset,
       style: 'danger' as const
-    }] : [])
+    }] : []),
+    {
+      icon: '➕',
+      label: 'Add to current queue',
+      onSelect: addToQueue
+    }
   ]);
 </script>
 
