@@ -11,6 +11,7 @@ import { registerFavoriteRoutes } from './routes/favorites.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerRecentRoutes } from './routes/recent.js';
 import { registerCastRoutes } from './routes/cast.js';
+import { registerStatsRoutes } from './routes/stats.js';
 import { startScanner, stopScanner, getStatus, triggerRescan } from './scanner/index.js';
 import { startCast, stopCast } from './cast/index.js';
 
@@ -43,6 +44,7 @@ await app.register(registerFavoriteRoutes, { db });
 await app.register(registerSearchRoutes, { db });
 await app.register(registerRecentRoutes, { db });
 await app.register(registerCastRoutes, { db });
+await app.register(registerStatsRoutes, { db });
 
 const publicDirExists = fs.existsSync(config.publicDir);
 if (publicDirExists) {

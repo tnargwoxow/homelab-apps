@@ -43,9 +43,13 @@ async function get<T>(url: string): Promise<T> {
 }
 
 async function post<T>(url: string, body?: unknown): Promise<T> {
+  // Skip Content-Type for bodyless POSTs — Fastify rejects them with
+  // FST_ERR_CTP_EMPTY_JSON_BODY otherwise.
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
   const r = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined
   });
   if (!r.ok) {

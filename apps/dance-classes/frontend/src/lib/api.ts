@@ -87,19 +87,66 @@ export interface LibraryStatus {
   queueDepth: number;
 }
 
+export interface StatsPayload {
+  total: {
+    classesStarted: number;
+    classesCompleted: number;
+    seconds: number;
+    favorites: number;
+    videosInLibrary: number;
+    daysPracticed: number;
+  };
+  thisWeek:  { classes: number; seconds: number; days: number };
+  thisMonth: { classes: number; seconds: number; days: number };
+  streak: { current: number; longest: number };
+  daily30:  Array<{ day: string; classes: number; seconds: number }>;
+  weekly12: Array<{ week_start: string; classes: number; seconds: number }>;
+  topVideos: Array<{
+    id: number; title: string; durationSec: number | null;
+    hasThumb: boolean; folderId: number; folderName: string;
+    position: number; watched: boolean; updatedAt: number;
+  }>;
+  topFolders: Array<{
+    id: number; name: string; classesStarted: number;
+    classesCompleted: number; seconds: number;
+  }>;
+}
+
+async function describeError(res: Response): Promise<string> {
+  try {
+    const data = await res.clone().json();
+    if (typeof data?.error === 'string')   return data.error;
+    if (typeof data?.message === 'string') return data.message;
+  } catch { /* not JSON */ }
+  try { return (await res.text()).trim(); } catch { return ''; }
+}
+
 async function get<T>(url: string): Promise<T> {
   const res = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${url}`);
+  if (!res.ok) {
+    const detail = await describeError(res);
+    throw new Error(detail ? `${res.status}: ${detail}` : `${res.status} ${res.statusText}`);
+  }
   return res.json() as Promise<T>;
 }
 
 async function send<T>(url: string, method: string, body?: unknown): Promise<T> {
+  // Critical: only set Content-Type: application/json when we actually have
+  // a body. Fastify rejects POST with that header but no body
+  // (FST_ERR_CTP_EMPTY_JSON_BODY) — which was breaking add-favorite,
+  // remove-favorite, manual rescan, etc.
+  const headers: Record<string, string> = { Accept: 'application/json' };
+  if (body !== undefined) headers['Content-Type'] = 'application/json';
+
   const res = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+    headers,
     body: body !== undefined ? JSON.stringify(body) : undefined
   });
-  if (!res.ok) throw new Error(`${res.status} ${res.statusText}: ${url}`);
+  if (!res.ok) {
+    const detail = await describeError(res);
+    throw new Error(detail ? `${res.status}: ${detail}` : `${res.status} ${res.statusText}`);
+  }
   return res.json() as Promise<T>;
 }
 
@@ -120,6 +167,7 @@ export const api = {
     send<{ ok: boolean }>(`/api/videos/${id}/progress`, 'DELETE'),
   setWatched: (id: number, watched: boolean) =>
     send<{ ok: boolean; watched: boolean }>(`/api/videos/${id}/watched`, 'POST', { watched }),
+  stats: () => get<StatsPayload>('/api/stats'),
   addFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'POST'),
   removeFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'DELETE'),
   thumbUrl: (id: number) => `/api/videos/${id}/thumb`,

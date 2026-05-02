@@ -65,6 +65,9 @@
         <a use:link href="/favorites" class="rounded-full px-3 py-1.5"
            onmouseover={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)')}
            onmouseout={(e)  => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}>{$theme.sections.favorites}</a>
+        <a use:link href="/stats" class="rounded-full px-3 py-1.5"
+           onmouseover={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)')}
+           onmouseout={(e)  => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}>📈 Stats</a>
       </nav>
       <div class="ml-auto flex min-w-0 shrink items-center gap-2 sm:max-w-md sm:flex-1">
         <div class="min-w-0 flex-1"><SearchBar /></div>
@@ -90,10 +93,19 @@
 
   <footer class="relative border-t px-4 py-6 text-center text-xs"
           style="background: var(--theme-header-bg); border-color: var(--theme-header-ring); color: var(--theme-text-muted);">
-    <span class="font-display text-base" style="color: var(--theme-text-strong);">{$theme.appName}</span>
-    <span class="mx-1">·</span> {$theme.tagline}
-    <span style="color: var(--theme-accent);">{$theme.favoritesIcon}</span>
-    <span class="mx-1">·</span> LAN-only
+    <div class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
+      <span class="font-display text-base" style="color: var(--theme-text-strong);">{$theme.appName}</span>
+      <span>· {$theme.tagline}</span>
+      <span style="color: var(--theme-accent);">{$theme.favoritesIcon}</span>
+      <span>· LAN-only</span>
+    </div>
+    <nav class="mt-2 flex flex-wrap items-center justify-center gap-1 text-xs">
+      <a use:link href="/" class="rounded-full px-2 py-1" style="color: var(--theme-text);">Home</a>
+      <span style="color: var(--theme-card-ring);">·</span>
+      <a use:link href="/favorites" class="rounded-full px-2 py-1" style="color: var(--theme-text);">{$theme.sections.favorites}</a>
+      <span style="color: var(--theme-card-ring);">·</span>
+      <a use:link href="/stats" class="rounded-full px-2 py-1" style="color: var(--theme-text);">📈 Stats</a>
+    </nav>
   </footer>
 
   <CastNowPlaying />
