@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import { api } from '../lib/api';
   import type { FavoriteItem } from '../lib/api';
+  import { theme } from '../lib/stores';
   import VideoCard from '../components/VideoCard.svelte';
-  import Mew from '../components/Mew.svelte';
+  import Mascot from '../components/Mascot.svelte';
 
   let items = $state<FavoriteItem[]>([]);
   let loading = $state(true);
@@ -29,10 +30,18 @@
 </script>
 
 <div class="mb-6 flex flex-wrap items-center gap-3">
-  <h1 class="mr-auto font-display text-3xl text-fuchsia-700 sm:text-4xl">♥ Favorites</h1>
-  <label class="text-sm text-fuchsia-700/80">
+  <h1 class="mr-auto font-display text-3xl sm:text-4xl" style="color: var(--theme-text-strong);">
+    <span style="color: var(--theme-accent);">{$theme.favoritesIcon}</span>
+    {$theme.sections.favorites}
+  </h1>
+  <label class="text-sm" style="color: var(--theme-text-muted);">
     Sort:
-    <select bind:value={sortMode} class="ml-1 rounded-full border border-pink-200 bg-white px-3 py-1 text-fuchsia-700 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-200">
+    <select bind:value={sortMode}
+      class="ml-1 rounded-full px-3 py-1 outline-none ring-1"
+      style="background: var(--theme-pill-bg);
+             color: var(--theme-text);
+             --tw-ring-color: var(--theme-pill-ring);
+             border-color: var(--theme-pill-ring);">
       <option value="date">Recently added</option>
       <option value="title">Title</option>
     </select>
@@ -40,13 +49,17 @@
 </div>
 
 {#if loading}
-  <div class="py-10 text-center text-fuchsia-500">Loading…</div>
+  <div class="py-10 text-center" style="color: var(--theme-text-muted);">Loading…</div>
 {:else if error}
-  <div class="py-10 text-center text-rose-500">{error}</div>
+  <div class="py-10 text-center" style="color: var(--theme-accent-2);">{error}</div>
 {:else if items.length === 0}
-  <div class="rounded-2xl bg-white/70 p-10 text-center text-fuchsia-700/80 ring-1 ring-pink-200">
-    <Mew class="mx-auto mb-3 h-24 w-24 mimi-bob" />
-    No favorites yet. Tap the ♡ button on a video to add it.
+  <div class="rounded-2xl p-10 text-center ring-1"
+       style="background: var(--theme-card-bg);
+              color: var(--theme-text-muted);
+              --tw-ring-color: var(--theme-card-ring);
+              border-color: var(--theme-card-ring);">
+    <Mascot slot="right" class="mx-auto mb-3 h-24 w-24 mimi-bob" />
+    No favorites yet. Tap the {$theme.favoritesIcon} button on a video to add it.
   </div>
 {:else}
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">

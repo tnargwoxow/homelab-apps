@@ -30,18 +30,18 @@
 </script>
 
 {#if loading}
-  <div class="py-20 text-center text-fuchsia-500">Loading…</div>
+  <div class="py-20 text-center" style="color: var(--theme-text-muted);">Loading…</div>
 {:else if error}
-  <div class="py-10 text-center text-rose-500">{error}</div>
+  <div class="py-10 text-center" style="color: var(--theme-accent-2);">{error}</div>
 {:else if payload}
   <div class="mb-6">
     <Breadcrumb items={payload.breadcrumb} />
-    <h1 class="mt-2 font-display text-3xl text-fuchsia-700 sm:text-4xl">{payload.folder.name}</h1>
+    <h1 class="mt-2 font-display text-3xl sm:text-4xl" style="color: var(--theme-text-strong);">{payload.folder.name}</h1>
   </div>
 
   {#if payload.folders.length > 0}
     <section class="mb-8">
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-fuchsia-500">Sub-folders</h2>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider" style="color: var(--theme-text-muted);">Sub-folders</h2>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {#each payload.folders as f (f.id)}
           <FolderCard id={f.id} name={f.name} childCount={f.childCount} thumbVideoIds={f.thumbVideoIds} />
@@ -52,7 +52,7 @@
 
   {#if payload.videos.length > 0}
     <section>
-      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-fuchsia-500">Videos ({payload.videos.length})</h2>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider" style="color: var(--theme-text-muted);">Videos ({payload.videos.length})</h2>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {#each payload.videos as v (v.id)}
           <VideoCard
@@ -71,6 +71,10 @@
   {/if}
 
   {#if payload.folders.length === 0 && payload.videos.length === 0}
-    <div class="rounded-2xl bg-white/70 p-10 text-center text-fuchsia-700/80 ring-1 ring-pink-200">This folder is empty.</div>
+    <div class="rounded-2xl p-10 text-center ring-1"
+         style="background: var(--theme-card-bg);
+                color: var(--theme-text-muted);
+                --tw-ring-color: var(--theme-card-ring);
+                border-color: var(--theme-card-ring);">This folder is empty.</div>
   {/if}
 {/if}

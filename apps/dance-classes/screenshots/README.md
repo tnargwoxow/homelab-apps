@@ -1,25 +1,29 @@
-# UI Preview — Mimi's Dance Wonderland
+# UI Preview
 
-Screenshots of the rebranded ballet-themed UI.
+Three themes, four pages each, two viewports — 24 screenshots total. The active theme is picked from the dropdown in the header (top right) and persisted in `localStorage`.
 
-Note in the rendering sandbox the Squirtle and Mew sprites and the Pacifico
-display font don't load (no internet from the renderer), and the video
-thumbnails are stand-in pastel cards — on a real server with internet
-access and ffmpeg the mascots, the script font, and real video frames will
-all show through.
+In the rendering sandbox the Wikimedia mascot URLs probably 404, so you'll see the SVG fallback art (heels: stiletto + flame; hip-hop: breakdancer silhouette; ballet: hand-drawn Squirtle/Mew). On a real server with internet they'll load the actual images.
 
-## Mobile (390 x 844, iPhone-ish)
+## 🩰 Mimi's Dance Wonderland (ballet)
 
-- [Home](mobile-home.png)
-- [Folder](mobile-folder.png)
-- [Watch](mobile-watch.png)
-- [Search](mobile-search.png)
-- [Favorites](mobile-favorites.png)
+Pink/lavender pastel · Pacifico script · Squirtle + Mew
 
-## Desktop (1440 x 900)
+| Mobile | Desktop |
+|---|---|
+| [Home](mobile-ballet-home.png) · [Folder](mobile-ballet-folder.png) · [Watch](mobile-ballet-watch.png) · [Favorites](mobile-ballet-favorites.png) | [Home](desktop-ballet-home.png) · [Folder](desktop-ballet-folder.png) · [Watch](desktop-ballet-watch.png) · [Favorites](desktop-ballet-favorites.png) |
 
-- [Home](desktop-home.png)
-- [Folder](desktop-folder.png)
-- [Watch](desktop-watch.png)
-- [Search](desktop-search.png)
-- [Favorites](desktop-favorites.png)
+## 👠 Heels Studio (heels)
+
+Dark sultry plum/magenta with gold accents · Cinzel serif · Channing Tatum
+
+| Mobile | Desktop |
+|---|---|
+| [Home](mobile-heels-home.png) · [Folder](mobile-heels-folder.png) · [Watch](mobile-heels-watch.png) · [Favorites](mobile-heels-favorites.png) | [Home](desktop-heels-home.png) · [Folder](desktop-heels-folder.png) · [Watch](desktop-heels-watch.png) · [Favorites](desktop-heels-favorites.png) |
+
+## 🧢 Flying Steps Sessions (hiphop)
+
+Black with electric yellow + red · Bebas Neue uppercase · Flying Steps imagery
+
+| Mobile | Desktop |
+|---|---|
+| [Home](mobile-hiphop-home.png) · [Folder](mobile-hiphop-folder.png) · [Watch](mobile-hiphop-watch.png) · [Favorites](mobile-hiphop-favorites.png) | [Home](desktop-hiphop-home.png) · [Folder](desktop-hiphop-folder.png) · [Watch](desktop-hiphop-watch.png) · [Favorites](desktop-hiphop-favorites.png) |

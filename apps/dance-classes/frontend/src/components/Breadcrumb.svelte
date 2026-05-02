@@ -9,20 +9,23 @@
   let { items, final = null }: Props = $props();
 </script>
 
-<nav class="flex flex-wrap items-center gap-1 text-sm text-fuchsia-700/80">
-  <a use:link href="/" class="rounded-full px-2 py-0.5 hover:bg-pink-100 hover:text-fuchsia-700">Home</a>
+<nav class="flex flex-wrap items-center gap-1 text-sm" style="color: var(--theme-text-muted);">
+  <a use:link href="/" class="rounded-full px-2 py-0.5 hover:opacity-100" style="opacity: 0.85;">Home</a>
   {#each items as item, i (item.id)}
-    <span class="text-pink-300">·</span>
+    <span style="color: var(--theme-card-ring);">·</span>
     {#if i === items.length - 1 && !final}
-      <span class="rounded-full bg-pink-100 px-2 py-0.5 font-semibold text-fuchsia-800">{item.name}</span>
+      <span class="rounded-full px-2 py-0.5 font-semibold"
+            style="background: var(--theme-pill-hover); color: var(--theme-text-strong);">{item.name}</span>
     {:else}
-      <a use:link href={`/folder/${item.id}`} class="rounded-full px-2 py-0.5 hover:bg-pink-100 hover:text-fuchsia-700">
+      <a use:link href={`/folder/${item.id}`} class="rounded-full px-2 py-0.5"
+         style="color: var(--theme-text-muted);">
         {item.name}
       </a>
     {/if}
   {/each}
   {#if final}
-    <span class="text-pink-300">·</span>
-    <span class="rounded-full bg-pink-100 px-2 py-0.5 font-semibold text-fuchsia-800">{final}</span>
+    <span style="color: var(--theme-card-ring);">·</span>
+    <span class="rounded-full px-2 py-0.5 font-semibold"
+          style="background: var(--theme-pill-hover); color: var(--theme-text-strong);">{final}</span>
   {/if}
 </nav>

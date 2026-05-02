@@ -1,21 +1,137 @@
 @import 'tailwindcss';
 
-@theme {
-  --color-mimi-bg-1: #fff5f8;
-  --color-mimi-bg-2: #fdf4ff;
-  --color-mimi-bg-3: #f5f3ff;
-  --color-mimi-card: #ffffff;
-  --color-mimi-pink: #ec4899;
-  --color-mimi-pink-soft: #fbcfe8;
-  --color-mimi-rose: #f43f5e;
-  --color-mimi-purple: #a855f7;
-  --color-mimi-plum: #581c87;
-  --color-mimi-cream: #fff7ed;
-  --color-mimi-text: #4c1d95;
-  --color-mimi-muted: #a78bfa;
+/* ============================================================
+   Theme tokens. Each theme defines the same set of variables;
+   the active theme is selected by `[data-theme="..."]` on <html>.
+   ============================================================ */
 
-  --font-display: "Pacifico", "Brush Script MT", "Comic Sans MS", cursive;
+:root,
+[data-theme='ballet'] {
+  --theme-grad-1: #ffe4ef;
+  --theme-grad-2: #f3e8ff;
+  --theme-grad-3: #fce7f3;
+  --theme-bg-base: #fff5f8;
+  --theme-bg-mid:  #fdf4ff;
+  --theme-bg-end:  #f5f3ff;
+
+  --theme-text:        #3b0764;
+  --theme-text-strong: #6b21a8;
+  --theme-text-muted:  #9d6cc7;
+
+  --theme-accent:        #ec4899;        /* pink-500 */
+  --theme-accent-hover:  #db2777;
+  --theme-accent-2:      #a855f7;        /* purple-500 */
+
+  --theme-card-bg:        rgba(255, 255, 255, 0.78);
+  --theme-card-ring:      #fbcfe8;
+  --theme-card-ring-hover:#ec4899;
+  --theme-card-shadow:    0 1px 2px rgba(236, 72, 153, 0.12);
+  --theme-card-shadow-h:  0 6px 14px rgba(236, 72, 153, 0.18);
+
+  --theme-header-bg:    rgba(255, 255, 255, 0.7);
+  --theme-header-ring:  rgba(244, 114, 182, 0.4);
+  --theme-pill-bg:      #ffffff;
+  --theme-pill-ring:    #fbcfe8;
+  --theme-pill-text:    #6b21a8;
+  --theme-pill-hover:   #fce7f3;
+
+  --theme-display-font: 'Pacifico', 'Brush Script MT', 'Comic Sans MS', cursive;
+  --theme-body-font:    'Quicksand', ui-sans-serif, system-ui, sans-serif;
+
+  --theme-twinkle-1: #f9a8d4;
+  --theme-twinkle-2: #f0abfc;
+  --theme-twinkle-3: #fda4af;
+  --theme-twinkle-4: #d8b4fe;
+
+  --theme-progress-from: #f472b6;
+  --theme-progress-to:   #d946ef;
 }
+
+[data-theme='heels'] {
+  --theme-grad-1: #1a0014;
+  --theme-grad-2: #2a0a20;
+  --theme-grad-3: #14040a;
+  --theme-bg-base: #0a0008;
+  --theme-bg-mid:  #160418;
+  --theme-bg-end:  #050003;
+
+  --theme-text:        #fce7f3;
+  --theme-text-strong: #ffe4ec;
+  --theme-text-muted:  #c084fc;
+
+  --theme-accent:        #d946ef;        /* hot magenta */
+  --theme-accent-hover:  #c026d3;
+  --theme-accent-2:      #fbbf24;        /* gold */
+
+  --theme-card-bg:        rgba(20, 5, 25, 0.62);
+  --theme-card-ring:      rgba(217, 70, 239, 0.35);
+  --theme-card-ring-hover:#fbbf24;
+  --theme-card-shadow:    0 1px 2px rgba(0, 0, 0, 0.4);
+  --theme-card-shadow-h:  0 6px 18px rgba(217, 70, 239, 0.35);
+
+  --theme-header-bg:    rgba(15, 2, 18, 0.78);
+  --theme-header-ring:  rgba(217, 70, 239, 0.3);
+  --theme-pill-bg:      rgba(40, 10, 45, 0.7);
+  --theme-pill-ring:    rgba(217, 70, 239, 0.3);
+  --theme-pill-text:    #fce7f3;
+  --theme-pill-hover:   rgba(217, 70, 239, 0.18);
+
+  --theme-display-font: 'Cinzel', 'Playfair Display', Georgia, serif;
+  --theme-body-font:    'Manrope', ui-sans-serif, system-ui, sans-serif;
+
+  --theme-twinkle-1: #fbbf24;
+  --theme-twinkle-2: #d946ef;
+  --theme-twinkle-3: #f59e0b;
+  --theme-twinkle-4: #c084fc;
+
+  --theme-progress-from: #d946ef;
+  --theme-progress-to:   #fbbf24;
+}
+
+[data-theme='hiphop'] {
+  --theme-grad-1: #0a0a0a;
+  --theme-grad-2: #161616;
+  --theme-grad-3: #050505;
+  --theme-bg-base: #0a0a0a;
+  --theme-bg-mid:  #141414;
+  --theme-bg-end:  #050505;
+
+  --theme-text:        #fafafa;
+  --theme-text-strong: #facc15;
+  --theme-text-muted:  #a3a3a3;
+
+  --theme-accent:        #facc15;        /* electric yellow */
+  --theme-accent-hover:  #eab308;
+  --theme-accent-2:      #ef4444;        /* red */
+
+  --theme-card-bg:        rgba(10, 10, 10, 0.72);
+  --theme-card-ring:      #2a2a2a;
+  --theme-card-ring-hover:#facc15;
+  --theme-card-shadow:    0 1px 2px rgba(0, 0, 0, 0.5);
+  --theme-card-shadow-h:  0 6px 18px rgba(250, 204, 21, 0.25);
+
+  --theme-header-bg:    rgba(10, 10, 10, 0.85);
+  --theme-header-ring:  #2a2a2a;
+  --theme-pill-bg:      #161616;
+  --theme-pill-ring:    #2a2a2a;
+  --theme-pill-text:    #fafafa;
+  --theme-pill-hover:   #1f1f1f;
+
+  --theme-display-font: 'Bebas Neue', 'Anton', 'Impact', sans-serif;
+  --theme-body-font:    'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --theme-twinkle-1: #facc15;
+  --theme-twinkle-2: #ef4444;
+  --theme-twinkle-3: #fde047;
+  --theme-twinkle-4: #f87171;
+
+  --theme-progress-from: #facc15;
+  --theme-progress-to:   #ef4444;
+}
+
+/* ============================================================
+   Globals
+   ============================================================ */
 
 html, body, #app {
   height: 100%;
@@ -23,48 +139,48 @@ html, body, #app {
 
 body {
   background:
-    radial-gradient(60rem 30rem at 0% -10%, #ffe4ef 0%, transparent 60%),
-    radial-gradient(50rem 30rem at 100% 0%, #f3e8ff 0%, transparent 55%),
-    radial-gradient(40rem 30rem at 50% 100%, #fce7f3 0%, transparent 55%),
-    linear-gradient(180deg, #fff5f8 0%, #fdf4ff 50%, #f5f3ff 100%);
+    radial-gradient(60rem 30rem at 0% -10%,  var(--theme-grad-1) 0%, transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%,  var(--theme-grad-2) 0%, transparent 55%),
+    radial-gradient(40rem 30rem at 50% 100%, var(--theme-grad-3) 0%, transparent 55%),
+    linear-gradient(180deg, var(--theme-bg-base) 0%, var(--theme-bg-mid) 50%, var(--theme-bg-end) 100%);
   background-attachment: fixed;
-  color: #3b0764;
-  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--theme-text);
+  font-family: var(--theme-body-font);
+  transition: background-color 200ms ease, color 200ms ease;
 }
 
 .font-display {
-  font-family: "Pacifico", "Brush Script MT", "Comic Sans MS", cursive;
+  font-family: var(--theme-display-font);
   font-weight: 400;
   letter-spacing: 0.01em;
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
+[data-theme='hiphop'] .font-display,
+[data-theme='heels']  .font-display {
+  letter-spacing: 0.04em;
 }
-::-webkit-scrollbar-track {
-  background: transparent;
+
+[data-theme='hiphop'] .font-display {
+  text-transform: uppercase;
 }
-::-webkit-scrollbar-thumb {
-  background: #f9a8d4;
-  border-radius: 6px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #ec4899;
-}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--theme-card-ring); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--theme-accent); }
 
 video::-webkit-media-controls-panel {
   background-color: rgba(0, 0, 0, 0.4);
 }
 
 @keyframes mimi-float {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50%      { transform: translateY(-6px) rotate(2deg); }
+  0%, 100% { transform: translateY(0)   rotate(-2deg); }
+  50%      { transform: translateY(-6px) rotate( 2deg); }
 }
 .mimi-float { animation: mimi-float 4s ease-in-out infinite; }
 
 @keyframes mimi-bob {
-  0%, 100% { transform: translateY(0) rotate(3deg); }
+  0%, 100% { transform: translateY(0)   rotate( 3deg); }
   50%      { transform: translateY(-4px) rotate(-3deg); }
 }
 .mimi-bob { animation: mimi-bob 5s ease-in-out infinite; }
@@ -74,3 +190,27 @@ video::-webkit-media-controls-panel {
   50%      { opacity: 1;   transform: scale(1.1); }
 }
 .mimi-twinkle { animation: mimi-twinkle 2.4s ease-in-out infinite; }
+
+/* ============================================================
+   Theme-specific decorative tweaks
+   ============================================================ */
+
+/* hiphop adds a subtle dot grid */
+[data-theme='hiphop'] body {
+  background-image:
+    radial-gradient(60rem 30rem at 0% -10%,  var(--theme-grad-1) 0%, transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%,  var(--theme-grad-2) 0%, transparent 55%),
+    radial-gradient(40rem 30rem at 50% 100%, var(--theme-grad-3) 0%, transparent 55%),
+    linear-gradient(180deg, var(--theme-bg-base) 0%, var(--theme-bg-mid) 50%, var(--theme-bg-end) 100%),
+    radial-gradient(circle at 1px 1px, rgba(250, 204, 21, 0.06) 1px, transparent 0);
+  background-size: auto, auto, auto, auto, 24px 24px;
+  background-attachment: fixed;
+}
+
+/* heels gets a faint vignette */
+[data-theme='heels'] body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  z-index: 0;
+}

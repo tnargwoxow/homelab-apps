@@ -5,6 +5,7 @@
   import type { VideoMeta } from '../lib/api';
   import Breadcrumb from '../components/Breadcrumb.svelte';
   import { formatDuration } from '../lib/format';
+  import { theme } from '../lib/stores';
 
   interface Props { params?: { id?: string }; }
   let { params }: Props = $props();
@@ -186,15 +187,24 @@
     clearCountdown();
   });
 
-  // Pill button class helpers
+  // Inline style helpers used by buttons + pills
   const pillBase = 'rounded-full px-3 py-1.5 text-sm transition ring-1 shadow-sm';
-  const pillIdle = 'bg-white text-fuchsia-700 ring-pink-200 hover:bg-pink-50';
+  const pillIdleStyle = 'background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);';
+  const pillActiveStyle = 'background: var(--theme-accent); color: white; --tw-ring-color: var(--theme-accent); border-color: var(--theme-accent);';
+  function pillHoverIn(e: Event) {
+    const el = e.currentTarget as HTMLElement;
+    if (el.dataset.active !== '1') el.style.background = 'var(--theme-pill-hover)';
+  }
+  function pillHoverOut(e: Event) {
+    const el = e.currentTarget as HTMLElement;
+    if (el.dataset.active !== '1') el.style.background = 'var(--theme-pill-bg)';
+  }
 </script>
 
 {#if loading}
-  <div class="py-20 text-center text-fuchsia-500">Loading…</div>
+  <div class="py-20 text-center" style="color: var(--theme-text-muted);">Loading…</div>
 {:else if error}
-  <div class="py-10 text-center text-rose-500">{error}</div>
+  <div class="py-10 text-center" style="color: var(--theme-accent-2);">{error}</div>
 {:else if meta}
   <div class="mb-3">
     <Breadcrumb items={meta.breadcrumb} final={meta.title} />
@@ -202,7 +212,8 @@
 
   <div class="grid gap-6 lg:grid-cols-[1fr_300px]">
     <div>
-      <div class="relative overflow-hidden rounded-3xl bg-black ring-2 ring-pink-200 shadow-lg shadow-pink-200/40">
+      <div class="relative overflow-hidden rounded-3xl bg-black ring-2 shadow-lg"
+           style="--tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
         <video
           bind:this={videoEl}
           src={api.streamUrl(meta.id)}
@@ -218,11 +229,12 @@
         ></video>
 
         {#if showResumeBanner}
-          <div class="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/95 px-4 py-2 text-sm shadow-lg ring-1 ring-pink-200">
-            <button class="font-semibold text-fuchsia-700 hover:text-fuchsia-600" onclick={resumeFromSaved}>
+          <div class="absolute left-1/2 top-4 -translate-x-1/2 rounded-full px-4 py-2 text-sm shadow-lg ring-1"
+               style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
+            <button class="font-semibold" style="color: var(--theme-accent);" onclick={resumeFromSaved}>
               ✨ Resume from {formatDuration(resumePosition)}
             </button>
-            <button class="ml-3 text-fuchsia-500 hover:text-fuchsia-700" onclick={() => (showResumeBanner = false)}>
+            <button class="ml-3" style="color: var(--theme-text-muted);" onclick={() => (showResumeBanner = false)}>
               Start over
             </button>
           </div>
@@ -230,18 +242,21 @@
 
         {#if countdown !== null}
           <div class="absolute inset-0 flex items-center justify-center bg-black/70">
-            <div class="rounded-3xl bg-white p-6 text-center shadow-2xl ring-2 ring-pink-200">
-              <div class="text-xs font-semibold uppercase tracking-wider text-fuchsia-500">Up next in {countdown}s</div>
-              <div class="mt-2 text-lg font-semibold text-fuchsia-800">
+            <div class="rounded-3xl p-6 text-center shadow-2xl ring-2"
+                 style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
+              <div class="text-xs font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">Up next in {countdown}s</div>
+              <div class="mt-2 text-lg font-semibold" style="color: var(--theme-text-strong);">
                 {meta.siblings.find(s => s.id === meta.nextId)?.title ?? 'Next lesson'}
               </div>
               <div class="mt-4 flex justify-center gap-2">
                 <button
-                  class="rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow hover:from-pink-400 hover:to-fuchsia-400"
+                  class="rounded-full px-4 py-2 text-sm font-semibold text-white shadow"
+                  style="background: linear-gradient(90deg, var(--theme-accent), var(--theme-accent-2));"
                   onclick={() => meta?.nextId && (clearCountdown(), push(`/watch/${meta.nextId}`))}
                 >Play now ✨</button>
                 <button
-                  class="rounded-full bg-pink-100 px-4 py-2 text-sm text-fuchsia-700 hover:bg-pink-200"
+                  class="rounded-full px-4 py-2 text-sm"
+                  style="background: var(--theme-pill-hover); color: var(--theme-text-strong);"
                   onclick={cancelAutoplay}
                 >Cancel</button>
               </div>
@@ -251,15 +266,25 @@
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <h1 class="mr-auto font-display text-2xl text-fuchsia-700 sm:text-3xl">{meta.title}</h1>
+        <h1 class="mr-auto font-display text-2xl sm:text-3xl" style="color: var(--theme-text-strong);">{meta.title}</h1>
 
         <div class="relative">
-          <button class="{pillBase} {pillIdle}" onclick={() => (showSpeedMenu = !showSpeedMenu)}>{playbackRate}x</button>
+          <button class={pillBase} style={pillIdleStyle}
+                  onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+                  onclick={() => (showSpeedMenu = !showSpeedMenu)}>{playbackRate}x</button>
           {#if showSpeedMenu}
-            <div class="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-pink-200">
+            <div class="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-2xl shadow-xl ring-1"
+                 style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
               {#each [0.75, 1, 1.25, 1.5, 1.75, 2] as rate}
                 <button
-                  class="block w-full px-3 py-1.5 text-left text-sm hover:bg-pink-50 {rate === playbackRate ? 'font-semibold text-fuchsia-700' : 'text-fuchsia-600'}"
+                  class="block w-full px-3 py-1.5 text-left text-sm"
+                  style={
+                    rate === playbackRate
+                      ? 'background: var(--theme-pill-hover); color: var(--theme-accent); font-weight: 600;'
+                      : 'color: var(--theme-text);'
+                  }
+                  onmouseover={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--theme-pill-hover)')}
+                  onmouseout={(e)  => ((e.currentTarget as HTMLButtonElement).style.background = rate === playbackRate ? 'var(--theme-pill-hover)' : 'transparent')}
                   onclick={() => setSpeed(rate)}
                 >{rate}x</button>
               {/each}
@@ -268,18 +293,20 @@
         </div>
 
         <button
-          class="{pillBase} {meta.favorite
-            ? 'bg-rose-500 text-white ring-rose-300 hover:bg-rose-400'
-            : pillIdle}"
+          class={pillBase}
+          data-active={meta.favorite ? '1' : '0'}
+          style={meta.favorite ? pillActiveStyle : pillIdleStyle}
+          onmouseover={pillHoverIn} onmouseout={pillHoverOut}
           onclick={toggleFavorite}
         >
-          {meta.favorite ? '♥ Favorited' : '♡ Favorite'}
+          {meta.favorite ? `${$theme.favoritesIcon} Favorited` : `${$theme.favoritesIcon} Favorite`}
         </button>
 
         <button
-          class="{pillBase} {meta.progress.watched
-            ? 'bg-emerald-400 text-white ring-emerald-200 hover:bg-emerald-300'
-            : pillIdle}"
+          class={pillBase}
+          data-active={meta.progress.watched ? '1' : '0'}
+          style={meta.progress.watched ? 'background: #10b981; color: white; --tw-ring-color: #10b981; border-color: #10b981;' : pillIdleStyle}
+          onmouseover={pillHoverIn} onmouseout={pillHoverOut}
           onclick={toggleWatched}
         >
           {meta.progress.watched ? '✓ Watched' : 'Mark watched'}
@@ -288,31 +315,39 @@
 
       <div class="mt-3 flex gap-2">
         {#if meta.prevId}
-          <a use:link href={`/watch/${meta.prevId}`} class="{pillBase} {pillIdle}">← Previous</a>
+          <a use:link href={`/watch/${meta.prevId}`} class={pillBase} style={pillIdleStyle}
+             onmouseover={pillHoverIn} onmouseout={pillHoverOut}>← Previous</a>
         {/if}
         {#if meta.nextId}
-          <a use:link href={`/watch/${meta.nextId}`} class="ml-auto {pillBase} {pillIdle}">Next →</a>
+          <a use:link href={`/watch/${meta.nextId}`} class="ml-auto {pillBase}" style={pillIdleStyle}
+             onmouseover={pillHoverIn} onmouseout={pillHoverOut}>Next →</a>
         {/if}
       </div>
 
-      <div class="mt-4 text-xs text-fuchsia-700/70">
+      <div class="mt-4 text-xs" style="color: var(--theme-text-muted);">
         Shortcuts: Space play/pause · J/L ±10s · ←/→ ±5s · F fullscreen · M mute · 0–9 jump · N/P next/prev · Shift+&lt;/&gt; speed
       </div>
     </div>
 
-    <aside class="rounded-3xl bg-white/70 p-3 ring-1 ring-pink-200 lg:max-h-[80vh] lg:overflow-y-auto">
-      <h3 class="mb-2 px-2 text-xs font-bold uppercase tracking-wider text-fuchsia-500">In this series</h3>
+    <aside class="rounded-3xl p-3 ring-1 lg:max-h-[80vh] lg:overflow-y-auto"
+           style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
+      <h3 class="mb-2 px-2 text-xs font-bold uppercase tracking-wider" style="color: var(--theme-text-muted);">{$theme.sections.inSeries}</h3>
       <ul class="space-y-1">
         {#each meta.siblings as s (s.id)}
           <li>
             <a
               use:link
               href={`/watch/${s.id}`}
-              class="flex items-baseline gap-2 rounded-xl px-2 py-1.5 text-sm transition {s.current
-                ? 'bg-gradient-to-r from-pink-100 to-fuchsia-100 font-semibold text-fuchsia-800'
-                : 'text-fuchsia-700 hover:bg-pink-50'}"
+              class="flex items-baseline gap-2 rounded-xl px-2 py-1.5 text-sm transition"
+              style={
+                s.current
+                  ? 'background: var(--theme-pill-hover); font-weight: 600; color: var(--theme-text-strong);'
+                  : 'color: var(--theme-text);'
+              }
+              onmouseover={(e) => { if (!s.current) (e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)'; }}
+              onmouseout={(e)  => { if (!s.current) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; }}
             >
-              <span class="w-6 shrink-0 text-right text-pink-400">{s.episodeNum ?? '·'}</span>
+              <span class="w-6 shrink-0 text-right" style="color: var(--theme-text-muted);">{s.episodeNum ?? '·'}</span>
               <span class="truncate">{s.title}</span>
             </a>
           </li>

@@ -1,6 +1,7 @@
-import { writable } from 'svelte/store';
+import { writable, derived } from 'svelte/store';
 import type { LibraryStatus } from './api';
 import { api } from './api';
+import { THEMES, DEFAULT_THEME, type ThemeId } from './themes';
 
 export const libraryStatus = writable<LibraryStatus | null>(null);
 
@@ -21,3 +22,25 @@ export function startStatusPolling(intervalMs = 5000): () => void {
     pollTimer = null;
   };
 }
+
+// ----- theme -----
+
+const STORAGE_KEY = 'mimi-theme';
+
+function readInitialTheme(): ThemeId {
+  if (typeof window === 'undefined') return DEFAULT_THEME;
+  const saved = window.localStorage.getItem(STORAGE_KEY);
+  if (saved && (saved === 'ballet' || saved === 'heels' || saved === 'hiphop')) return saved;
+  return DEFAULT_THEME;
+}
+
+export const themeId = writable<ThemeId>(readInitialTheme());
+
+themeId.subscribe(id => {
+  if (typeof document === 'undefined') return;
+  document.documentElement.setAttribute('data-theme', id);
+  try { window.localStorage.setItem(STORAGE_KEY, id); } catch { /* ignore */ }
+});
+
+export const theme = derived(themeId, $id => THEMES[$id]);
+

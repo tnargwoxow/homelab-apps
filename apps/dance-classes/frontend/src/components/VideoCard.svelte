@@ -29,7 +29,15 @@
 </script>
 
 <a use:link href={`/watch/${id}`} class="group block">
-  <div class="relative aspect-video w-full overflow-hidden rounded-2xl bg-gradient-to-br from-pink-100 via-rose-50 to-fuchsia-100 ring-1 ring-pink-200 shadow-sm transition group-hover:shadow-md group-hover:ring-pink-400">
+  <div
+    class="relative aspect-video w-full overflow-hidden rounded-2xl ring-1 shadow-sm transition group-hover:shadow-md"
+    style="background: var(--theme-card-bg);
+           --tw-ring-color: var(--theme-card-ring);
+           border-color: var(--theme-card-ring);
+           box-shadow: var(--theme-card-shadow);"
+    onmouseover={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--theme-card-shadow-h)'; (e.currentTarget as HTMLDivElement).style.setProperty('--tw-ring-color', 'var(--theme-card-ring-hover)'); }}
+    onmouseout={(e) => { (e.currentTarget as HTMLDivElement).style.boxShadow = 'var(--theme-card-shadow)'; (e.currentTarget as HTMLDivElement).style.setProperty('--tw-ring-color', 'var(--theme-card-ring)'); }}
+  >
     {#if hasThumb}
       <img
         src={api.thumbUrl(id)}
@@ -38,7 +46,7 @@
         class="absolute inset-0 h-full w-full object-cover transition group-hover:scale-[1.02]"
       />
     {:else}
-      <div class="absolute inset-0 flex items-center justify-center text-pink-300">
+      <div class="absolute inset-0 flex items-center justify-center" style="color: var(--theme-card-ring);">
         <svg viewBox="0 0 24 24" class="h-10 w-10" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
       </div>
     {/if}
@@ -50,13 +58,14 @@
     {/if}
 
     {#if favorite}
-      <div class="absolute left-2 top-2 rounded-full bg-rose-400 p-1 text-white shadow ring-2 ring-white">
+      <div class="absolute left-2 top-2 rounded-full p-1 text-white shadow ring-2 ring-white" style="background: var(--theme-accent);">
         <svg viewBox="0 0 20 20" class="h-3.5 w-3.5" fill="currentColor"><path d="M10 18 8.55 16.7C3.4 12.04 0 8.99 0 5.5 0 2.42 2.42 0 5.5 0c1.74 0 3.41.81 4.5 2.09C11.09.81 12.76 0 14.5 0 17.58 0 20 2.42 20 5.5c0 3.49-3.4 6.54-8.55 11.2z"/></svg>
       </div>
     {/if}
 
     {#if durationSec}
-      <div class="absolute bottom-1.5 right-1.5 rounded-full bg-white/85 px-2 py-0.5 text-[11px] font-semibold text-fuchsia-700 shadow-sm">
+      <div class="absolute bottom-1.5 right-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm"
+           style="background: var(--theme-pill-bg); color: var(--theme-text-strong);">
         {formatDuration(durationSec)}
       </div>
     {/if}
@@ -66,8 +75,8 @@
     {/if}
   </div>
   <div class="mt-2">
-    <div class="line-clamp-2 text-sm font-medium text-fuchsia-900 group-hover:text-fuchsia-700">
-      {#if episodeNum !== null}<span class="mr-1 text-pink-400">{episodeNum}.</span>{/if}{title}
+    <div class="line-clamp-2 text-sm font-medium" style="color: var(--theme-text);">
+      {#if episodeNum !== null}<span class="mr-1" style="color: var(--theme-text-muted);">{episodeNum}.</span>{/if}{title}
     </div>
   </div>
 </a>
