@@ -23,6 +23,45 @@ Designed to run on a low-power Proxmox VM. Direct HTTP byte-range streaming, no 
 2. `docker compose up --build -d`
 3. Open `http://<host-ip>:8080`.
 
+## Deploying on a Proxmox host (one command)
+
+SSH to your Proxmox PVE node as root and run:
+
+```bash
+bash <(curl -fsSL https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
+```
+
+You'll be prompted for the host path to your dance video library. The script:
+
+- Picks the next free VMID (starting at 200) and downloads the Ubuntu 24.04 LXC template if needed.
+- Creates an unprivileged LXC with `nesting=1,keyctl=1` so Docker works inside.
+- Bind-mounts your video path into the container at `/videos` (read-only).
+- Boots the container, installs Docker CE + the compose plugin, clones this repo, and runs `docker compose up -d --build`.
+- Prints the URL when the container reports healthy.
+
+You can override defaults via env vars before the `bash <(...)`:
+
+```bash
+VIDEOS_HOST_PATH=/mnt/data/dance \
+VMID=215 HOSTNAME=mimi STORAGE=local-zfs DISK_SIZE=8 MEMORY=1024 CORES=2 \
+bash <(curl -fsSL https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
+```
+
+After install, manage the container from the PVE host:
+
+```bash
+pct enter <vmid>                         # shell in
+pct stop <vmid>; pct start <vmid>        # stop/start
+```
+
+Inside the container:
+
+```bash
+cd /opt/homelab-apps/apps/dance-classes
+docker compose logs -f                   # tail logs
+docker compose pull && docker compose up -d --build   # update to latest branch
+```
+
 ## Configuration
 
 | Var | Default | Notes |
