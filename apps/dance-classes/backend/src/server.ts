@@ -37,6 +37,36 @@ app.post('/api/library/rescan', async () => {
   return { ok: true };
 });
 
+interface ErrorRow {
+  id: number;
+  rel_path: string;
+  filename: string;
+  display_title: string;
+  folder_id: number;
+  scan_error: string | null;
+  updated_at: number;
+}
+app.get('/api/library/errors', async () => {
+  const rows = db.prepare<[], ErrorRow>(`
+    SELECT id, rel_path, filename, display_title, folder_id, scan_error, updated_at
+    FROM videos
+    WHERE scan_status = 'error'
+    ORDER BY updated_at DESC
+    LIMIT 200
+  `).all();
+  return {
+    items: rows.map(r => ({
+      id: r.id,
+      relPath: r.rel_path,
+      filename: r.filename,
+      title: r.display_title,
+      folderId: r.folder_id,
+      error: r.scan_error,
+      updatedAt: r.updated_at
+    }))
+  };
+});
+
 await app.register(registerLibraryRoutes, { db });
 await app.register(registerVideoRoutes, { db, config });
 await app.register(registerProgressRoutes, { db });

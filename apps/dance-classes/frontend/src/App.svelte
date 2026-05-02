@@ -13,6 +13,11 @@
   import ThemeSelector from './components/ThemeSelector.svelte';
   import CastNowPlaying from './components/CastNowPlaying.svelte';
   import PipNowPlaying from './components/PipNowPlaying.svelte';
+  import WeeklyGoals from './components/WeeklyGoals.svelte';
+  import BottomNav from './components/BottomNav.svelte';
+  import StatsListModal from './components/StatsListModal.svelte';
+
+  let errorsModalOpen = $state(false);
 
   onMount(() => {
     initAutoPip();
@@ -76,22 +81,31 @@
     </div>
     {#if $libraryStatus}
       {@const s = $libraryStatus}
-      {#if s.scanning || s.queueDepth > 0 || s.thumbnailed < s.total}
-        <div class="mx-auto max-w-7xl px-4 pb-2 text-xs" style="color: var(--theme-text-muted);">
-          {#if s.scanning}<span class="mr-3">✨ Scanning library…</span>{/if}
-          <span class="mr-3">{s.thumbnailed}/{s.total} thumbnails</span>
-          {#if s.queueDepth > 0}<span class="mr-3">queue: {s.queueDepth}</span>{/if}
-          {#if s.errored > 0}<span style="color: var(--theme-accent-2);">errors: {s.errored}</span>{/if}
+      {#if s.scanning || s.queueDepth > 0 || s.thumbnailed < s.total || s.errored > 0}
+        <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-3 gap-y-1 px-4 pb-2 text-xs" style="color: var(--theme-text-muted);">
+          {#if s.scanning}<span>✨ Scanning library…</span>{/if}
+          <span>{s.thumbnailed}/{s.total} thumbnails</span>
+          {#if s.queueDepth > 0}<span>queue: {s.queueDepth}</span>{/if}
+          {#if s.errored > 0}
+            <button
+              type="button"
+              class="rounded-full px-2 py-0.5 ring-1 transition"
+              style="background: rgba(244,63,94,0.12); color: #f43f5e; --tw-ring-color: rgba(244,63,94,0.4); border-color: rgba(244,63,94,0.4);"
+              onclick={() => (errorsModalOpen = true)}
+              aria-label="Show library errors"
+            >errors: {s.errored} ›</button>
+          {/if}
         </div>
       {/if}
     {/if}
   </header>
 
-  <main class="relative mx-auto w-full max-w-full px-4 py-6 sm:max-w-7xl">
+  <main class="relative mx-auto w-full max-w-full px-4 pt-4 pb-24 sm:max-w-7xl sm:pb-6">
+    <WeeklyGoals />
     <Router {routes} />
   </main>
 
-  <footer class="relative border-t px-4 py-6 text-center text-xs"
+  <footer class="relative hidden border-t px-4 py-6 text-center text-xs sm:block"
           style="background: var(--theme-header-bg); border-color: var(--theme-header-ring); color: var(--theme-text-muted);">
     <div class="flex flex-wrap items-center justify-center gap-x-2 gap-y-1">
       <span class="font-display text-base" style="color: var(--theme-text-strong);">{$theme.appName}</span>
@@ -99,15 +113,17 @@
       <span style="color: var(--theme-accent);">{$theme.favoritesIcon}</span>
       <span>· LAN-only</span>
     </div>
-    <nav class="mt-2 flex flex-wrap items-center justify-center gap-1 text-xs">
-      <a use:link href="/" class="rounded-full px-2 py-1" style="color: var(--theme-text);">Home</a>
-      <span style="color: var(--theme-card-ring);">·</span>
-      <a use:link href="/favorites" class="rounded-full px-2 py-1" style="color: var(--theme-text);">{$theme.sections.favorites}</a>
-      <span style="color: var(--theme-card-ring);">·</span>
-      <a use:link href="/stats" class="rounded-full px-2 py-1" style="color: var(--theme-text);">📈 Stats</a>
-    </nav>
   </footer>
 
+  <BottomNav />
   <CastNowPlaying />
   <PipNowPlaying />
+
+  <StatsListModal
+    open={errorsModalOpen}
+    title="Library errors"
+    subtitle="Files the scanner couldn't probe or thumbnail"
+    source="errors"
+    onClose={() => (errorsModalOpen = false)}
+  />
 </div>

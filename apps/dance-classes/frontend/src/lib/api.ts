@@ -98,7 +98,11 @@ export interface StatsPayload {
   };
   thisWeek:  { classes: number; seconds: number; days: number };
   thisMonth: { classes: number; seconds: number; days: number };
-  streak: { current: number; longest: number };
+  streak: { current: number; longest: number; atRisk: boolean; endsAt: number; isSunday: boolean };
+  weekGoals: {
+    videos:  { current: number; target: number; met: boolean };
+    minutes: { current: number; target: number; met: boolean };
+  };
   daily30:  Array<{ day: string; classes: number; seconds: number }>;
   weekly12: Array<{ week_start: string; classes: number; seconds: number }>;
   topVideos: Array<{
@@ -110,6 +114,29 @@ export interface StatsPayload {
     id: number; name: string; classesStarted: number;
     classesCompleted: number; seconds: number;
   }>;
+}
+
+export interface StatsListItem {
+  id: number;
+  title: string;
+  durationSec: number | null;
+  hasThumb: boolean;
+  folderId: number;
+  folderName: string;
+  position: number;
+  progressDuration: number | null;
+  watched: boolean;
+  updatedAt: number;
+}
+
+export interface LibraryErrorItem {
+  id: number;
+  relPath: string;
+  filename: string;
+  title: string;
+  folderId: number;
+  error: string | null;
+  updatedAt: number;
 }
 
 async function describeError(res: Response): Promise<string> {
@@ -168,6 +195,12 @@ export const api = {
   setWatched: (id: number, watched: boolean) =>
     send<{ ok: boolean; watched: boolean }>(`/api/videos/${id}/watched`, 'POST', { watched }),
   stats: () => get<StatsPayload>('/api/stats'),
+  statsList: (range: string, date?: string) => {
+    const qs = new URLSearchParams({ range });
+    if (date) qs.set('date', date);
+    return get<{ items: StatsListItem[] }>(`/api/stats/list?${qs}`);
+  },
+  libraryErrors: () => get<{ items: LibraryErrorItem[] }>('/api/library/errors'),
   addFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'POST'),
   removeFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'DELETE'),
   thumbUrl: (id: number) => `/api/videos/${id}/thumb`,

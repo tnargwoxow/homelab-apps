@@ -5,6 +5,16 @@
   import type { StatsPayload } from '../lib/api';
   import { theme } from '../lib/stores';
   import Sparkle from '../components/Sparkle.svelte';
+  import StatsListModal from '../components/StatsListModal.svelte';
+
+  let modalOpen = $state(false);
+  let modalCfg = $state<{ title: string; subtitle: string; range: string; date?: string }>({
+    title: '', subtitle: '', range: 'this-week'
+  });
+  function openList(title: string, subtitle: string, range: string, date?: string) {
+    modalCfg = { title, subtitle, range, date };
+    modalOpen = true;
+  }
 
   let data = $state<StatsPayload | null>(null);
   let loading = $state(true);
@@ -90,38 +100,61 @@
 {:else if data}
   {@const d = data}
 
-  <!-- Hero numbers -->
+  <!-- Hero numbers (clickable: open the videos that made up the stat) -->
   <section class="mb-8 grid grid-cols-2 gap-3 sm:grid-cols-4">
     {#each [
-      { label: 'Watch time',   value: fmtHours(d.total.seconds),                        sub: 'all-time' },
-      { label: 'Classes done', value: String(d.total.classesCompleted),                 sub: `${d.total.classesStarted} started` },
-      { label: 'Streak',       value: String(d.streak.current),                          sub: `best ${d.streak.longest}` },
-      { label: 'Favorites',    value: String(d.total.favorites),                         sub: `of ${d.total.videosInLibrary}` }
+      { label: 'Watch time',   value: fmtHours(d.total.seconds),                        sub: 'all-time',
+        title: 'All-time watch history', subtitle: 'Every lesson you\'ve started', range: 'all' },
+      { label: 'Classes done', value: String(d.total.classesCompleted),                 sub: `${d.total.classesStarted} started`,
+        title: 'All-time history', subtitle: 'Lessons started', range: 'all' },
+      { label: 'Streak',       value: String(d.streak.current),                          sub: `${d.streak.current === 1 ? 'week' : 'weeks'} · best ${d.streak.longest}`,
+        title: 'This week', subtitle: 'Lessons that count toward your streak', range: 'this-week' },
+      { label: 'Favorites',    value: String(d.total.favorites),                         sub: `of ${d.total.videosInLibrary}`,
+        title: '', subtitle: '', range: '' }
     ] as card}
-      <div class="rounded-2xl p-4 ring-1 shadow-sm"
+      {#if card.range}
+        <button
+          type="button"
+          class="rounded-2xl p-4 text-left ring-1 shadow-sm transition"
+          style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring);
+                 border-color: var(--theme-card-ring); box-shadow: var(--theme-card-shadow);"
+          onclick={() => openList(card.title, card.subtitle, card.range)}
+        >
+          <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">{card.label}</div>
+          <div class="mt-1 font-display text-3xl leading-none" style="color: var(--theme-text-strong);">{card.value}</div>
+          <div class="mt-1 text-xs" style="color: var(--theme-text-muted);">{card.sub}</div>
+        </button>
+      {:else}
+        <a use:link href="/favorites"
+           class="block rounded-2xl p-4 ring-1 shadow-sm transition"
            style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring);
                   border-color: var(--theme-card-ring); box-shadow: var(--theme-card-shadow);">
-        <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">{card.label}</div>
-        <div class="mt-1 font-display text-3xl leading-none" style="color: var(--theme-text-strong);">{card.value}</div>
-        <div class="mt-1 text-xs" style="color: var(--theme-text-muted);">{card.sub}</div>
-      </div>
+          <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">{card.label}</div>
+          <div class="mt-1 font-display text-3xl leading-none" style="color: var(--theme-text-strong);">{card.value}</div>
+          <div class="mt-1 text-xs" style="color: var(--theme-text-muted);">{card.sub}</div>
+        </a>
+      {/if}
     {/each}
   </section>
 
-  <!-- This week vs this month -->
+  <!-- This week vs this month — both clickable -->
   <section class="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2">
     {#each [
-      { label: 'This week',  block: d.thisWeek },
-      { label: 'This month', block: d.thisMonth }
+      { label: 'This week',  block: d.thisWeek,  range: 'this-week',  subtitle: 'Lessons watched since Monday' },
+      { label: 'This month', block: d.thisMonth, range: 'last-30',    subtitle: 'Last 30 days' }
     ] as p}
-      <div class="rounded-2xl p-4 ring-1 shadow-sm"
-           style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
+      <button
+        type="button"
+        class="rounded-2xl p-4 text-left ring-1 shadow-sm transition"
+        style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);"
+        onclick={() => openList(p.label, p.subtitle, p.range)}
+      >
         <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">{p.label}</div>
         <div class="mt-2 flex items-baseline gap-3" style="color: var(--theme-text-strong);">
           <span class="font-display text-2xl">{fmtMinutes(p.block.seconds)}</span>
           <span class="text-sm" style="color: var(--theme-text-muted);">{p.block.classes} classes · {p.block.days} days</span>
         </div>
-      </div>
+      </button>
     {/each}
   </section>
 
@@ -136,11 +169,14 @@
     </h2>
     <div class="grid grid-cols-15 gap-1 sm:grid-cols-30" style="grid-template-columns: repeat(15, minmax(0,1fr));">
       {#each d.daily30 as day (day.day)}
-        <div
-          class="aspect-square rounded-md ring-1"
+        <button
+          type="button"
+          class="aspect-square rounded-md ring-1 transition"
           title="{day.day}: {fmtMinutes(day.seconds)} · {day.classes} classes"
           style="background: {heatColor(day.seconds)}; --tw-ring-color: var(--theme-card-ring);"
-        ></div>
+          disabled={day.classes === 0}
+          onclick={() => openList(shortDay(day.day), `${fmtMinutes(day.seconds)} watched`, 'all', day.day)}
+        ></button>
       {/each}
     </div>
     <div class="mt-2 flex items-center justify-between text-[11px]" style="color: var(--theme-text-muted);">
@@ -273,3 +309,13 @@
     </div>
   {/if}
 {/if}
+
+<StatsListModal
+  open={modalOpen}
+  title={modalCfg.title}
+  subtitle={modalCfg.subtitle}
+  source="stats"
+  range={modalCfg.range}
+  date={modalCfg.date}
+  onClose={() => (modalOpen = false)}
+/>
