@@ -3,6 +3,7 @@
   import { routes } from './router';
   import { libraryStatus, startStatusPolling, theme } from './lib/stores';
   import { startCastPolling } from './lib/cast';
+  import { initPwa } from './lib/pwa';
   import { onMount } from 'svelte';
   import SearchBar from './components/SearchBar.svelte';
   import BalletShoe from './components/BalletShoe.svelte';
@@ -10,9 +11,11 @@
   import Sparkle from './components/Sparkle.svelte';
   import Mascot from './components/Mascot.svelte';
   import ThemeSelector from './components/ThemeSelector.svelte';
+  import InstallButton from './components/InstallButton.svelte';
   import CastNowPlaying from './components/CastNowPlaying.svelte';
 
   onMount(() => {
+    initPwa();
     const stopStatus = startStatusPolling(7000);
     const stopCast = startCastPolling(5000);
     return () => { stopStatus(); stopCast(); };
@@ -65,6 +68,7 @@
       </nav>
       <div class="ml-auto flex min-w-0 shrink items-center gap-2 sm:max-w-md sm:flex-1">
         <div class="min-w-0 flex-1"><SearchBar /></div>
+        <InstallButton />
         <ThemeSelector />
       </div>
     </div>
