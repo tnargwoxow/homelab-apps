@@ -36,11 +36,15 @@ interface DistinctDayRow { day: string }
 // video on that calendar day, in the server's local timezone.
 const MIN_SECONDS_FOR_PRACTICE = 30;
 
-// Weekly streak rule: ≥ this many distinct videos watched in a Mon→Sun week.
-// User asked for "any class is enough" — one is enough.
-const WEEKLY_VIDEOS_TARGET = 1;
-// Secondary weekly goal (motivational, doesn't affect streak).
-const WEEKLY_MINUTES_TARGET = 60;
+// Weekly streak rule: a week qualifies when BOTH targets are met.
+const WEEKLY_VIDEOS_TARGET = 1;    // at least 1 distinct class
+const WEEKLY_MINUTES_TARGET = 10;  // and at least 10 minutes of practice
+
+function weekQualifies(week: { videos: number; seconds: number } | undefined): boolean {
+  if (!week) return false;
+  return week.videos  >= WEEKLY_VIDEOS_TARGET
+      && week.seconds >= WEEKLY_MINUTES_TARGET * 60;
+}
 
 function isoMondayOf(d: Date): string {
   // Monday-of-the-week as YYYY-MM-DD in local time.
@@ -193,15 +197,14 @@ export async function registerStatsRoutes(
     let currentStreak = 0;
     {
       // If this week qualifies, include it; otherwise start counting from
-      // last week so the streak survives until Sunday midnight if last week
-      // was a qualifier.
-      const startOffset = thisWeekVideos >= WEEKLY_VIDEOS_TARGET ? 0 : 1;
+      // last week so the streak survives until Sunday midnight if last
+      // week was a qualifier.
+      const thisWeekQualifies = weekQualifies(weekVidsByMonday.get(thisMonday));
+      const startOffset = thisWeekQualifies ? 0 : 1;
       let i = startOffset;
-      // safety: don't loop more than 5 years
-      while (i < 260) {
+      while (i < 260) { // safety
         const wk = priorMonday(thisMonday, i);
-        const v = weekVidsByMonday.get(wk)?.videos ?? 0;
-        if (v >= WEEKLY_VIDEOS_TARGET) currentStreak++;
+        if (weekQualifies(weekVidsByMonday.get(wk))) currentStreak++;
         else break;
         i++;
       }
@@ -213,8 +216,7 @@ export async function registerStatsRoutes(
       let prev: Date | null = null;
       let run = 0;
       for (const wk of sortedWeeks) {
-        const v = weekVidsByMonday.get(wk)?.videos ?? 0;
-        if (v < WEEKLY_VIDEOS_TARGET) { prev = null; run = 0; continue; }
+        if (!weekQualifies(weekVidsByMonday.get(wk))) { prev = null; run = 0; continue; }
         const d = new Date(wk + 'T00:00:00');
         if (prev) {
           const gapWeeks = Math.round((d.getTime() - prev.getTime()) / (86400000 * 7));
@@ -225,13 +227,14 @@ export async function registerStatsRoutes(
       }
     }
 
-    // Streak is "at risk" if it's Sunday and we haven't yet hit the goal
-    // this week — but only if there's a streak to lose (i.e. last week
-    // qualified, or some earlier streak chain is still active).
+    // Streak is "at risk" if it's Sunday and this week hasn't fully
+    // qualified yet — but only if there's a streak to lose (last week
+    // qualified, or current streak is non-zero from earlier history).
     const isSundayLocal = now.getDay() === 0;
-    const lastWeekQualified = (weekVidsByMonday.get(priorMonday(thisMonday, 1))?.videos ?? 0) >= WEEKLY_VIDEOS_TARGET;
+    const lastWeekQualified = weekQualifies(weekVidsByMonday.get(priorMonday(thisMonday, 1)));
+    const thisWeekQualifies = weekQualifies(weekVidsByMonday.get(thisMonday));
     const atRisk = isSundayLocal
-      && thisWeekVideos < WEEKLY_VIDEOS_TARGET
+      && !thisWeekQualifies
       && (lastWeekQualified || currentStreak > 0);
 
     // ---- This week / month bounded sums ----------------------------------

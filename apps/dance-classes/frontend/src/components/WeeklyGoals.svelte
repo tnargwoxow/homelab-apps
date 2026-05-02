@@ -49,6 +49,24 @@
     streakAtRisk ? (secsLeft < 4 * 3600 ? 'urgent' : 'gentle') : 'none'
   );
 
+  // Compose a "what's missing" string for the at-risk warning. Both targets
+  // are now part of the streak rule, so list whichever isn't met.
+  let needsCopy = $derived(((): string => {
+    if (!data) return '';
+    const parts: string[] = [];
+    const v = data.weekGoals.videos;
+    const m = data.weekGoals.minutes;
+    if (!v.met) {
+      const need = v.target - v.current;
+      parts.push(need === 1 ? '1 more class' : `${need} more classes`);
+    }
+    if (!m.met) {
+      const need = m.target - m.current;
+      parts.push(`${need} more min`);
+    }
+    return parts.join(' + ');
+  })());
+
   function ratioPct(cur: number, target: number): number {
     return Math.max(0, Math.min(100, Math.round((cur / target) * 100)));
   }
@@ -74,11 +92,11 @@
       <div class="text-[11px] font-semibold uppercase tracking-wider"
            style="color: {warnLevel !== 'none' ? '#f43f5e' : (bothMet ? '#10b981' : 'var(--theme-text-muted)')};">
         {#if warnLevel === 'urgent'}
-          ⚠️ {fmtCountdown(secsLeft)} to keep your streak
+          ⚠️ {fmtCountdown(secsLeft)} left · need {needsCopy}
         {:else if warnLevel === 'gentle'}
-          🕐 Sunday — {data.weekGoals.videos.target - data.weekGoals.videos.current} more video to keep your streak
+          🕐 Sunday — need {needsCopy} to keep your streak
         {:else if bothMet}
-          ✓ Goals smashed this week
+          ✓ Streak alive — goals met
         {:else}
           Week ends Sunday · {fmtCountdown(secsLeft)} left
         {/if}
@@ -91,9 +109,7 @@
         type="button"
         class="rounded-xl p-2.5 text-left ring-1 transition"
         style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);"
-        onclick={() => open('Videos this week', data && data.weekGoals.videos.target === 1
-          ? 'Any class keeps your streak'
-          : `Watch ${data?.weekGoals.videos.target ?? 1} to keep your streak`, 'this-week')}
+        onclick={() => open('Videos this week', `1 class + 10 min keeps your streak`, 'this-week')}
       >
         <div class="flex items-baseline justify-between gap-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">📺 Videos this week</span>
@@ -110,7 +126,7 @@
         type="button"
         class="rounded-xl p-2.5 text-left ring-1 transition"
         style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);"
-        onclick={() => open('Minutes this week', `Aim for ${data?.weekGoals.minutes.target} minutes`, 'this-week')}
+        onclick={() => open('Minutes this week', `1 class + 10 min keeps your streak`, 'this-week')}
       >
         <div class="flex items-baseline justify-between gap-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">⏱️ Minutes this week</span>
