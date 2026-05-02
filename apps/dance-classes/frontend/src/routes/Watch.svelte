@@ -467,7 +467,10 @@
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <h1 class="mr-auto font-display text-2xl sm:text-3xl" style="color: var(--theme-text-strong);">{meta.title}</h1>
+        <h1
+          class="mr-auto min-w-0 max-w-full basis-full font-display text-xl leading-tight sm:basis-auto sm:text-3xl"
+          style="color: var(--theme-text-strong); overflow-wrap: anywhere; word-break: break-word;"
+        >{meta.title}</h1>
 
         <CastButton
           videoId={meta.id}

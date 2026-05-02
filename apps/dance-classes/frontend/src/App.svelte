@@ -19,7 +19,7 @@
   });
 </script>
 
-<div class="relative min-h-full overflow-hidden">
+<div class="relative min-h-full w-full max-w-full overflow-hidden">
   <!-- Floating mascots: peeking from corners on larger screens -->
   <div class="pointer-events-none absolute -left-6 top-32 hidden md:block">
     <div class="mimi-float opacity-90">
@@ -41,16 +41,18 @@
   <header class="sticky top-0 z-30 border-b backdrop-blur-md"
           style="background: var(--theme-header-bg); border-color: var(--theme-header-ring);">
     <div class="mx-auto flex max-w-7xl items-center gap-2 px-4 py-3 sm:gap-4">
-      <a use:link href="/" class="flex shrink-0 items-center gap-2" style="color: var(--theme-text-strong);">
+      <!-- min-w-0 + truncate so a long wordmark on a wide cursive font
+           doesn't drag the header past the viewport on phones. -->
+      <a use:link href="/" class="flex min-w-0 flex-1 items-center gap-2 sm:flex-none" style="color: var(--theme-text-strong);">
         {#if $theme.id === 'ballet'}
-          <BalletShoe class="h-7 w-7" />
-          <span class="font-display text-lg leading-none sm:text-2xl">{$theme.appName}</span>
+          <BalletShoe class="h-7 w-7 shrink-0" />
+          <span class="truncate font-display text-base leading-none sm:text-2xl">{$theme.appName}</span>
         {:else if $theme.id === 'hiphop'}
-          <FlyingStepsLogo class="h-8 sm:h-9" />
+          <FlyingStepsLogo class="h-7 shrink-0 sm:h-9" />
           <span class="hidden font-display text-sm leading-none tracking-wider opacity-70 lg:inline">ACADEMY</span>
         {:else}
-          <span class="text-xl">{$theme.emoji}</span>
-          <span class="font-display text-lg leading-none sm:text-2xl">{$theme.appName}</span>
+          <span class="shrink-0 text-xl">{$theme.emoji}</span>
+          <span class="truncate font-display text-base leading-none sm:text-2xl">{$theme.appName}</span>
         {/if}
       </a>
       <nav class="ml-2 hidden items-center gap-1 text-sm font-medium md:flex" style="color: var(--theme-text-strong);">
@@ -61,8 +63,8 @@
            onmouseover={(e) => ((e.currentTarget as HTMLAnchorElement).style.background = 'var(--theme-pill-hover)')}
            onmouseout={(e)  => ((e.currentTarget as HTMLAnchorElement).style.background = 'transparent')}>{$theme.sections.favorites}</a>
       </nav>
-      <div class="ml-auto flex items-center gap-2 max-w-md w-full sm:w-auto sm:flex-1">
-        <div class="flex-1"><SearchBar /></div>
+      <div class="ml-auto flex min-w-0 shrink items-center gap-2 sm:max-w-md sm:flex-1">
+        <div class="min-w-0 flex-1"><SearchBar /></div>
         <ThemeSelector />
       </div>
     </div>
@@ -79,7 +81,7 @@
     {/if}
   </header>
 
-  <main class="relative mx-auto max-w-7xl px-4 py-6">
+  <main class="relative mx-auto w-full max-w-full px-4 py-6 sm:max-w-7xl">
     <Router {routes} />
   </main>
 

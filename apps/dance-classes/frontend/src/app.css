@@ -150,6 +150,18 @@ html, body {
   position: relative;
 }
 
+#app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Native video on Samsung/Android Chrome can briefly use intrinsic
+   dimensions before honoring `aspect-video w-full` — this enforces it. */
+video {
+  max-width: 100%;
+}
+
 body {
   background:
     radial-gradient(60rem 30rem at 0% -10%,  var(--theme-grad-1) 0%, transparent 60%),
