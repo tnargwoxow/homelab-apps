@@ -1,9 +1,82 @@
 import ChromecastAPI from 'chromecast-api';
 import type { CastDevice } from 'chromecast-api';
+import { createRequire } from 'node:module';
 import type { Logger } from '../types.js';
 
+// chromecast-api 0.4.x is built on castv2-client / castv2 / multicast-dns.
+// We need to reach into a couple of those for runtime fixes.
+const _require = createRequire(import.meta.url);
+
+// ---------------------------------------------------------------------------
+// Runtime patch: castv2.Client.prototype.close throws when the underlying
+// TLS socket has already been nulled by the close-event handler, which is
+// exactly what happens when chromecast-api's error path also calls close().
+// Make it null-safe so the play() callback receives the *real* connection
+// error instead of a confusing "Cannot read properties of null" message.
+// ---------------------------------------------------------------------------
+type CastV2ClientLike = { socket: unknown; close: () => void; __patchedClose?: boolean };
+try {
+  const castv2 = _require('castv2') as { Client?: { prototype: CastV2ClientLike } };
+  const proto = castv2.Client?.prototype;
+  if (proto && !proto.__patchedClose) {
+    const original = proto.close;
+    proto.close = function (this: CastV2ClientLike) {
+      if (!this.socket) return;
+      try { return original.call(this); }
+      catch { this.socket = null; }
+    };
+    proto.__patchedClose = true;
+  }
+} catch { /* castv2 not present */ }
+
+// ---------------------------------------------------------------------------
+// Resolve a Bonjour/mDNS hostname (foo.local) to an IPv4 address. Alpine's
+// musl libc has no nss-mdns, so node's getaddrinfo can't see .local names,
+// and chromecast-api's tls.connect() fails outright. We do the A-record
+// query ourselves over multicast.
+// ---------------------------------------------------------------------------
+type MdnsResponse = { answers: Array<{ type: string; name: string; data: string }> };
+type MdnsInstance = {
+  on: (e: 'response', cb: (r: MdnsResponse) => void) => void;
+  query: (q: { questions: Array<{ name: string; type: string }> }) => void;
+  destroy: () => void;
+};
+
+async function resolveLocal(name: string, timeoutMs = 3000): Promise<string | null> {
+  let mdns: MdnsInstance;
+  try {
+    const factory = _require('multicast-dns') as () => MdnsInstance;
+    mdns = factory();
+  } catch {
+    return null;
+  }
+  return new Promise<string | null>(resolve => {
+    let done = false;
+    const finish = (ip: string | null) => {
+      if (done) return;
+      done = true;
+      try { mdns.destroy(); } catch { /* ignore */ }
+      resolve(ip);
+    };
+    const timer = setTimeout(() => finish(null), timeoutMs);
+    mdns.on('response', resp => {
+      for (const a of resp.answers ?? []) {
+        if (a.type === 'A' && a.name === name && typeof a.data === 'string') {
+          clearTimeout(timer);
+          finish(a.data);
+          return;
+        }
+      }
+    });
+    try { mdns.query({ questions: [{ name, type: 'A' }] }); }
+    catch { clearTimeout(timer); finish(null); }
+  });
+}
+
+// ---------------------------------------------------------------------------
+
 export interface CastDeviceInfo {
-  id: string;        // device.host (stable for the LAN)
+  id: string;
   name: string;
   host: string;
   session: CastSessionStatus | null;
@@ -17,7 +90,7 @@ export interface CastSessionStatus {
   videoId: number;
   title: string;
   state: CastPlayerState;
-  position: number;          // seconds
+  position: number;
   duration: number | null;
   startedAt: number;
 }
@@ -61,23 +134,40 @@ export function startCast(log: Logger): void {
   }
 
   api.on('device', device => {
-    devices.set(device.host, device);
-    log.info({ host: device.host, name: device.friendlyName }, 'cast device discovered');
-
-    // Many cast libs don't strongly type events; wrap defensively.
-    try {
-      device.on('finished', () => {
-        log?.info?.({ host: device.host }, 'cast playback finished');
-        sessions.delete(device.host);
-      });
-      device.on('disconnected', () => {
-        log?.info?.({ host: device.host }, 'cast device disconnected');
-        sessions.delete(device.host);
-      });
-    } catch {
-      /* no-op */
-    }
+    void onDeviceDiscovered(device);
   });
+}
+
+async function onDeviceDiscovered(device: CastDevice): Promise<void> {
+  // Replace the .local hostname with a resolved IPv4 — see top of file.
+  if (device.host && /\.local\.?$/.test(device.host)) {
+    const original = device.host;
+    const ip = await resolveLocal(original.replace(/\.$/, ''));
+    if (ip) {
+      logger?.info?.({ name: device.friendlyName, host: original, ip }, 'cast device discovered (resolved)');
+      device.host = ip;
+    } else {
+      logger?.warn?.({ name: device.friendlyName, host: original }, 'cast device discovered, .local lookup timed out');
+    }
+  } else {
+    logger?.info?.({ name: device.friendlyName, host: device.host }, 'cast device discovered');
+  }
+
+  devices.set(device.host, device);
+
+  try {
+    device.on('finished', () => {
+      logger?.info?.({ host: device.host }, 'cast playback finished');
+      sessions.delete(device.host);
+    });
+    device.on('disconnected', () => {
+      logger?.info?.({ host: device.host }, 'cast device disconnected');
+      sessions.delete(device.host);
+    });
+    device.on('error', (...args: unknown[]) => {
+      logger?.warn?.({ host: device.host, err: args[0] }, 'cast device error');
+    });
+  } catch { /* defensive */ }
 }
 
 export function stopCast(): void {
@@ -117,38 +207,51 @@ export function play(deviceId: string, mediaUrl: string, opts: PlayOpts): Promis
   if (!device) return Promise.reject(new Error(`Cast device not found: ${deviceId}`));
 
   return new Promise((resolve, reject) => {
-    // chromecast-api 0.4.x reads `opts.startTime` (seconds) and ignores
-    // anything else — title/contentType were no-ops and the manual seekTo
-    // we used to fire 1.8s later was racing the player's IDLE → BUFFERING
-    // transition and triggering the 500. Pass startTime here instead.
+    // chromecast-api 0.4.x reads `opts.startTime` (seconds). Title etc are
+    // ignored. Pass startTime here instead of running a separate seekTo
+    // afterwards (which raced the player's IDLE → BUFFERING transition).
     const playOpts = opts.startTime && opts.startTime > 5
       ? { startTime: Math.floor(opts.startTime) }
       : {};
 
-    device.play(mediaUrl, playOpts, (err: Error | null) => {
+    let settled = false;
+    const finish = (err?: Error) => {
+      if (settled) return;
+      settled = true;
       if (err) {
-        logger?.error?.({ err, deviceId, mediaUrl }, 'cast play failed');
-        return reject(err);
-      }
-
-      const startedAt = Date.now();
-      sessions.set(deviceId, {
-        videoId: opts.videoId,
-        title: opts.title,
-        duration: opts.durationSec,
-        startedAt,
-        lastStatus: buildIdleStatus(deviceId, {
+        logger?.error?.({ err: err.message ?? err, deviceId, mediaUrl, host: device.host }, 'cast play failed');
+        // After a connection failure, drop our cached Device so the next
+        // discovery refresh can hand us a working one. The library's stale
+        // Client object would just keep failing the same way.
+        try { device.close?.(); } catch { /* ignore */ }
+        devices.delete(deviceId);
+        reject(err);
+      } else {
+        const startedAt = Date.now();
+        sessions.set(deviceId, {
           videoId: opts.videoId,
           title: opts.title,
           duration: opts.durationSec,
           startedAt,
-          state: 'loading',
-          position: opts.startTime ?? 0
-        }),
-        lastFetched: 0
-      });
-      resolve();
-    });
+          lastStatus: buildIdleStatus(deviceId, {
+            videoId: opts.videoId,
+            title: opts.title,
+            duration: opts.durationSec,
+            startedAt,
+            state: 'loading',
+            position: opts.startTime ?? 0
+          }),
+          lastFetched: 0
+        });
+        resolve();
+      }
+    };
+
+    try {
+      device.play(mediaUrl, playOpts, (err: Error | null) => finish(err ?? undefined));
+    } catch (err) {
+      finish(err as Error);
+    }
   });
 }
 
@@ -156,7 +259,8 @@ function callDevice(deviceId: string, fn: (d: CastDevice, cb: (e: Error | null) 
   const device = devices.get(deviceId);
   if (!device) return Promise.reject(new Error(`Cast device not found: ${deviceId}`));
   return new Promise((resolve, reject) => {
-    fn(device, err => err ? reject(err) : resolve());
+    try { fn(device, err => err ? reject(err) : resolve()); }
+    catch (err) { reject(err as Error); }
   });
 }
 
