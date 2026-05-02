@@ -2,6 +2,7 @@
   import Router, { link } from 'svelte-spa-router';
   import { routes } from './router';
   import { libraryStatus, startStatusPolling, theme } from './lib/stores';
+  import { startCastPolling } from './lib/cast';
   import { onMount } from 'svelte';
   import SearchBar from './components/SearchBar.svelte';
   import BalletShoe from './components/BalletShoe.svelte';
@@ -9,8 +10,13 @@
   import Sparkle from './components/Sparkle.svelte';
   import Mascot from './components/Mascot.svelte';
   import ThemeSelector from './components/ThemeSelector.svelte';
+  import CastNowPlaying from './components/CastNowPlaying.svelte';
 
-  onMount(() => startStatusPolling(7000));
+  onMount(() => {
+    const stopStatus = startStatusPolling(7000);
+    const stopCast = startCastPolling(5000);
+    return () => { stopStatus(); stopCast(); };
+  });
 </script>
 
 <div class="relative min-h-full overflow-hidden">
@@ -84,4 +90,6 @@
     <span style="color: var(--theme-accent);">{$theme.favoritesIcon}</span>
     <span class="mx-1">·</span> LAN-only
   </footer>
+
+  <CastNowPlaying />
 </div>

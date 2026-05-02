@@ -4,8 +4,11 @@ services:
     image: mimis-dance-wonderland:local
     container_name: mimis-dance-wonderland
     restart: unless-stopped
-    ports:
-      - "8080:8080"
+    # Host networking is required so the app can browse mDNS for Chromecasts
+    # on the LAN. Plex/Jellyfin/Home Assistant run the same way for the same
+    # reason. With host networking the container shares the LXC's IP and
+    # listens directly on $PORT — no `ports:` block.
+    network_mode: host
     volumes:
       - ${VIDEOS_HOST_PATH:?set VIDEOS_HOST_PATH in .env}:/videos:ro
       - ./data:/data
@@ -19,12 +22,14 @@ services:
       THUMB_CONCURRENCY: "2"
       PROBE_CONCURRENCY: "2"
       LOG_LEVEL: info
+      # Optional: explicit URL the Chromecast will hit for streams. Defaults
+      # to the Host header from the request, which is the LAN IP your phone
+      # connected to. Override if the app sits behind a reverse proxy.
+      # PUBLIC_BASE_URL: "http://192.168.1.50:8080"
     deploy:
       resources:
         limits:
-          # Memory cap stays generous; the app idles around 100-150MB.
           memory: 768M
-          # No hard CPU cap by default — let thumbnail generation use whatever
-          # cores the host (or LXC) gives it. Set this back to "1.0" or "2.0"
-          # if you need to throttle.
+          # Uncomment to throttle CPU; otherwise the container uses whatever
+          # cores the LXC has.
           # cpus: "2.0"

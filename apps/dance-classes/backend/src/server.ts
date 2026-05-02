@@ -10,7 +10,9 @@ import { registerProgressRoutes } from './routes/progress.js';
 import { registerFavoriteRoutes } from './routes/favorites.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerRecentRoutes } from './routes/recent.js';
+import { registerCastRoutes } from './routes/cast.js';
 import { startScanner, stopScanner, getStatus, triggerRescan } from './scanner/index.js';
+import { startCast, stopCast } from './cast/index.js';
 
 const config = loadConfig();
 
@@ -40,6 +42,7 @@ await app.register(registerProgressRoutes, { db });
 await app.register(registerFavoriteRoutes, { db });
 await app.register(registerSearchRoutes, { db });
 await app.register(registerRecentRoutes, { db });
+await app.register(registerCastRoutes, { db });
 
 const publicDirExists = fs.existsSync(config.publicDir);
 if (publicDirExists) {
@@ -65,6 +68,7 @@ const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'shutting down');
   try {
     await stopScanner();
+    stopCast();
     await app.close();
     closeDb(db);
     process.exit(0);
@@ -80,6 +84,7 @@ try {
   await app.listen({ port: config.port, host: config.host });
   app.log.info({ videosDir: config.videosDir, dataDir: config.dataDir }, 'server listening');
   startScanner({ db, videosDir: config.videosDir, thumbDir: config.thumbDir, probeConcurrency: config.probeConcurrency, thumbConcurrency: config.thumbConcurrency, logger: app.log });
+  startCast(app.log);
 } catch (err) {
   app.log.error({ err }, 'failed to start');
   process.exit(1);

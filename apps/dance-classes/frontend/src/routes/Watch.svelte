@@ -4,6 +4,7 @@
   import { api, sendProgressBeacon } from '../lib/api';
   import type { VideoMeta } from '../lib/api';
   import Breadcrumb from '../components/Breadcrumb.svelte';
+  import CastButton from '../components/CastButton.svelte';
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
 
@@ -267,6 +268,12 @@
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
         <h1 class="mr-auto font-display text-2xl sm:text-3xl" style="color: var(--theme-text-strong);">{meta.title}</h1>
+
+        <CastButton
+          videoId={meta.id}
+          position={videoEl?.currentTime ?? 0}
+          onCasted={() => { try { videoEl?.pause(); } catch { /* ignore */ } }}
+        />
 
         <div class="relative">
           <button class={pillBase} style={pillIdleStyle}
