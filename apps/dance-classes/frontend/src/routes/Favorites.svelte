@@ -3,6 +3,7 @@
   import { api } from '../lib/api';
   import type { FavoriteItem } from '../lib/api';
   import VideoCard from '../components/VideoCard.svelte';
+  import Mew from '../components/Mew.svelte';
 
   let items = $state<FavoriteItem[]>([]);
   let loading = $state(true);
@@ -28,10 +29,10 @@
 </script>
 
 <div class="mb-6 flex flex-wrap items-center gap-3">
-  <h1 class="mr-auto text-2xl font-semibold text-neutral-50">Favorites</h1>
-  <label class="text-sm text-neutral-400">
+  <h1 class="mr-auto font-display text-3xl text-fuchsia-700 sm:text-4xl">♥ Favorites</h1>
+  <label class="text-sm text-fuchsia-700/80">
     Sort:
-    <select bind:value={sortMode} class="ml-1 rounded bg-neutral-900 px-2 py-1 text-neutral-100 ring-1 ring-neutral-800">
+    <select bind:value={sortMode} class="ml-1 rounded-full border border-pink-200 bg-white px-3 py-1 text-fuchsia-700 outline-none focus:border-fuchsia-400 focus:ring-2 focus:ring-fuchsia-200">
       <option value="date">Recently added</option>
       <option value="title">Title</option>
     </select>
@@ -39,11 +40,14 @@
 </div>
 
 {#if loading}
-  <div class="py-10 text-center text-neutral-500">Loading…</div>
+  <div class="py-10 text-center text-fuchsia-500">Loading…</div>
 {:else if error}
-  <div class="py-10 text-center text-rose-400">{error}</div>
+  <div class="py-10 text-center text-rose-500">{error}</div>
 {:else if items.length === 0}
-  <div class="py-20 text-center text-neutral-500">No favorites yet. Tap the ☆ button on a video to add it.</div>
+  <div class="rounded-2xl bg-white/70 p-10 text-center text-fuchsia-700/80 ring-1 ring-pink-200">
+    <Mew class="mx-auto mb-3 h-24 w-24 mimi-bob" />
+    No favorites yet. Tap the ♡ button on a video to add it.
+  </div>
 {:else}
   <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
     {#each sorted as v (v.id)}

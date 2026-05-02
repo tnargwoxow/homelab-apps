@@ -1,6 +1,6 @@
-# Dance Classes
+# Mimi's Dance Wonderland
 
-Self-hosted streaming web app for a folder-organized library of dance class videos. Browse nested folders, search across the library, resume where you left off on every video, mark favorites, and see what you watched recently.
+A self-hosted, ballet-themed streaming web app for a folder-organized library of dance class videos. Browse nested folders, search across the library, resume where you left off on every video, mark favorites, and see what you watched recently.
 
 Designed to run on a low-power Proxmox VM. Direct HTTP byte-range streaming, no transcoding. ffmpeg is only used to generate one thumbnail per video, on a queue.
 
@@ -14,7 +14,7 @@ Designed to run on a low-power Proxmox VM. Direct HTTP byte-range streaming, no 
 - Auto-play next lesson with countdown overlay
 - Playback speed (1x / 1.25x / 1.5x / 2x)
 - Keyboard shortcuts (Space, J/L, arrows, F, M, 0-9, etc.)
-- Dark theme, lightweight Svelte UI
+- Cute pastel ballet theme with mascots
 - LAN-only; no auth
 
 ## Quick start
@@ -38,8 +38,15 @@ Designed to run on a low-power Proxmox VM. Direct HTTP byte-range streaming, no 
 - `/videos` (read-only) — your library
 - `/data` — SQLite database + thumbnail cache (persistent)
 
+## Notes on external assets
+
+- The "Pacifico" display font loads from Google Fonts.
+- The Squirtle and Mew mascots load from PokeAPI's public sprite repository on GitHub.
+
+If your server has no internet access, both will fall back gracefully (system cursive font and broken-image icon respectively). Drop replacements into `frontend/public/` and update the references in `App.svelte` if you want a fully offline build.
+
 ## Troubleshooting
 
-- **No videos appear:** check `docker logs dance-classes` for the walk output. Ensure `VIDEOS_HOST_PATH` is set and points at the right directory.
+- **No videos appear:** check `docker logs mimis-dance-wonderland` for the walk output. Ensure `VIDEOS_HOST_PATH` is set and points at the right directory.
 - **Thumbnails missing:** ffmpeg runs queued at concurrency 1 to keep CPU low. Wait or check `/api/library/status`.
 - **Resource use spikes during first run:** thumbnail generation is one-time per video.

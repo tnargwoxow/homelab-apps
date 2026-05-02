@@ -1,11 +1,20 @@
 @import 'tailwindcss';
 
 @theme {
-  --color-bg-base: #0a0a0a;
-  --color-bg-card: #171717;
-  --color-bg-card-hover: #1f1f1f;
-  --color-accent: #f43f5e;
-  --color-accent-2: #fb7185;
+  --color-mimi-bg-1: #fff5f8;
+  --color-mimi-bg-2: #fdf4ff;
+  --color-mimi-bg-3: #f5f3ff;
+  --color-mimi-card: #ffffff;
+  --color-mimi-pink: #ec4899;
+  --color-mimi-pink-soft: #fbcfe8;
+  --color-mimi-rose: #f43f5e;
+  --color-mimi-purple: #a855f7;
+  --color-mimi-plum: #581c87;
+  --color-mimi-cream: #fff7ed;
+  --color-mimi-text: #4c1d95;
+  --color-mimi-muted: #a78bfa;
+
+  --font-display: "Pacifico", "Brush Script MT", "Comic Sans MS", cursive;
 }
 
 html, body, #app {
@@ -13,9 +22,20 @@ html, body, #app {
 }
 
 body {
-  background: var(--color-bg-base);
-  color: #e5e5e5;
+  background:
+    radial-gradient(60rem 30rem at 0% -10%, #ffe4ef 0%, transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%, #f3e8ff 0%, transparent 55%),
+    radial-gradient(40rem 30rem at 50% 100%, #fce7f3 0%, transparent 55%),
+    linear-gradient(180deg, #fff5f8 0%, #fdf4ff 50%, #f5f3ff 100%);
+  background-attachment: fixed;
+  color: #3b0764;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.font-display {
+  font-family: "Pacifico", "Brush Script MT", "Comic Sans MS", cursive;
+  font-weight: 400;
+  letter-spacing: 0.01em;
 }
 
 ::-webkit-scrollbar {
@@ -26,14 +46,31 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2a2a2a;
+  background: #f9a8d4;
   border-radius: 6px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3a3a3a;
+  background: #ec4899;
 }
 
-/* Custom video controls fallback colour */
 video::-webkit-media-controls-panel {
   background-color: rgba(0, 0, 0, 0.4);
 }
+
+@keyframes mimi-float {
+  0%, 100% { transform: translateY(0) rotate(-2deg); }
+  50%      { transform: translateY(-6px) rotate(2deg); }
+}
+.mimi-float { animation: mimi-float 4s ease-in-out infinite; }
+
+@keyframes mimi-bob {
+  0%, 100% { transform: translateY(0) rotate(3deg); }
+  50%      { transform: translateY(-4px) rotate(-3deg); }
+}
+.mimi-bob { animation: mimi-bob 5s ease-in-out infinite; }
+
+@keyframes mimi-twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+.mimi-twinkle { animation: mimi-twinkle 2.4s ease-in-out infinite; }

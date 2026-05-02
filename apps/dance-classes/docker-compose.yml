@@ -1,8 +1,8 @@
 services:
   dance-classes:
     build: .
-    image: dance-classes:local
-    container_name: dance-classes
+    image: mimis-dance-wonderland:local
+    container_name: mimis-dance-wonderland
     restart: unless-stopped
     ports:
       - "8080:8080"

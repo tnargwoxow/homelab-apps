@@ -5,9 +5,7 @@
   import VideoCard from '../components/VideoCard.svelte';
   import FolderCard from '../components/FolderCard.svelte';
 
-  interface Props {
-    params?: { id?: string };
-  }
+  interface Props { params?: { id?: string }; }
   let { params }: Props = $props();
 
   let payload = $state<FolderPayload | null>(null);
@@ -32,21 +30,21 @@
 </script>
 
 {#if loading}
-  <div class="py-20 text-center text-neutral-500">Loading…</div>
+  <div class="py-20 text-center text-fuchsia-500">Loading…</div>
 {:else if error}
-  <div class="py-10 text-center text-rose-400">{error}</div>
+  <div class="py-10 text-center text-rose-500">{error}</div>
 {:else if payload}
   <div class="mb-6">
     <Breadcrumb items={payload.breadcrumb} />
-    <h1 class="mt-2 text-2xl font-semibold text-neutral-50">{payload.folder.name}</h1>
+    <h1 class="mt-2 font-display text-3xl text-fuchsia-700 sm:text-4xl">{payload.folder.name}</h1>
   </div>
 
   {#if payload.folders.length > 0}
     <section class="mb-8">
-      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">Sub-folders</h2>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-fuchsia-500">Sub-folders</h2>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {#each payload.folders as f (f.id)}
-          <FolderCard id={f.id} name={f.name} childCount={f.childCount} />
+          <FolderCard id={f.id} name={f.name} childCount={f.childCount} thumbVideoIds={f.thumbVideoIds} />
         {/each}
       </div>
     </section>
@@ -54,7 +52,7 @@
 
   {#if payload.videos.length > 0}
     <section>
-      <h2 class="mb-3 text-sm font-medium uppercase tracking-wide text-neutral-500">Videos ({payload.videos.length})</h2>
+      <h2 class="mb-3 text-xs font-bold uppercase tracking-wider text-fuchsia-500">Videos ({payload.videos.length})</h2>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {#each payload.videos as v (v.id)}
           <VideoCard
@@ -73,6 +71,6 @@
   {/if}
 
   {#if payload.folders.length === 0 && payload.videos.length === 0}
-    <div class="py-20 text-center text-neutral-500">This folder is empty.</div>
+    <div class="rounded-2xl bg-white/70 p-10 text-center text-fuchsia-700/80 ring-1 ring-pink-200">This folder is empty.</div>
   {/if}
 {/if}

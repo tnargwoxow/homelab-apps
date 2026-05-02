@@ -185,20 +185,24 @@
     onUnload();
     clearCountdown();
   });
+
+  // Pill button class helpers
+  const pillBase = 'rounded-full px-3 py-1.5 text-sm transition ring-1 shadow-sm';
+  const pillIdle = 'bg-white text-fuchsia-700 ring-pink-200 hover:bg-pink-50';
 </script>
 
 {#if loading}
-  <div class="py-20 text-center text-neutral-500">Loading…</div>
+  <div class="py-20 text-center text-fuchsia-500">Loading…</div>
 {:else if error}
-  <div class="py-10 text-center text-rose-400">{error}</div>
+  <div class="py-10 text-center text-rose-500">{error}</div>
 {:else if meta}
   <div class="mb-3">
     <Breadcrumb items={meta.breadcrumb} final={meta.title} />
   </div>
 
-  <div class="grid gap-6 lg:grid-cols-[1fr_280px]">
+  <div class="grid gap-6 lg:grid-cols-[1fr_300px]">
     <div>
-      <div class="relative overflow-hidden rounded-xl bg-black ring-1 ring-neutral-800">
+      <div class="relative overflow-hidden rounded-3xl bg-black ring-2 ring-pink-200 shadow-lg shadow-pink-200/40">
         <video
           bind:this={videoEl}
           src={api.streamUrl(meta.id)}
@@ -214,14 +218,11 @@
         ></video>
 
         {#if showResumeBanner}
-          <div class="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-neutral-900/95 px-4 py-2 text-sm shadow-lg ring-1 ring-neutral-700">
-            <button
-              class="font-medium text-rose-400 hover:text-rose-300"
-              onclick={resumeFromSaved}
-            >
-              Resume from {formatDuration(resumePosition)}
+          <div class="absolute left-1/2 top-4 -translate-x-1/2 rounded-full bg-white/95 px-4 py-2 text-sm shadow-lg ring-1 ring-pink-200">
+            <button class="font-semibold text-fuchsia-700 hover:text-fuchsia-600" onclick={resumeFromSaved}>
+              ✨ Resume from {formatDuration(resumePosition)}
             </button>
-            <button class="ml-3 text-neutral-400 hover:text-neutral-200" onclick={() => (showResumeBanner = false)}>
+            <button class="ml-3 text-fuchsia-500 hover:text-fuchsia-700" onclick={() => (showResumeBanner = false)}>
               Start over
             </button>
           </div>
@@ -229,18 +230,18 @@
 
         {#if countdown !== null}
           <div class="absolute inset-0 flex items-center justify-center bg-black/70">
-            <div class="rounded-2xl bg-neutral-900/95 p-6 text-center shadow-2xl ring-1 ring-neutral-800">
-              <div class="text-xs uppercase tracking-wide text-neutral-500">Up next in {countdown}s</div>
-              <div class="mt-2 text-lg font-semibold text-neutral-50">
+            <div class="rounded-3xl bg-white p-6 text-center shadow-2xl ring-2 ring-pink-200">
+              <div class="text-xs font-semibold uppercase tracking-wider text-fuchsia-500">Up next in {countdown}s</div>
+              <div class="mt-2 text-lg font-semibold text-fuchsia-800">
                 {meta.siblings.find(s => s.id === meta.nextId)?.title ?? 'Next lesson'}
               </div>
               <div class="mt-4 flex justify-center gap-2">
                 <button
-                  class="rounded-full bg-rose-500 px-4 py-2 text-sm font-medium text-white hover:bg-rose-400"
+                  class="rounded-full bg-gradient-to-r from-pink-500 to-fuchsia-500 px-4 py-2 text-sm font-semibold text-white shadow hover:from-pink-400 hover:to-fuchsia-400"
                   onclick={() => meta?.nextId && (clearCountdown(), push(`/watch/${meta.nextId}`))}
-                >Play now</button>
+                >Play now ✨</button>
                 <button
-                  class="rounded-full bg-neutral-800 px-4 py-2 text-sm text-neutral-200 hover:bg-neutral-700"
+                  class="rounded-full bg-pink-100 px-4 py-2 text-sm text-fuchsia-700 hover:bg-pink-200"
                   onclick={cancelAutoplay}
                 >Cancel</button>
               </div>
@@ -250,18 +251,15 @@
       </div>
 
       <div class="mt-4 flex flex-wrap items-center gap-2">
-        <h1 class="mr-auto text-xl font-semibold text-neutral-50">{meta.title}</h1>
+        <h1 class="mr-auto font-display text-2xl text-fuchsia-700 sm:text-3xl">{meta.title}</h1>
 
         <div class="relative">
-          <button
-            class="rounded-full bg-neutral-900 px-3 py-1.5 text-sm text-neutral-200 ring-1 ring-neutral-800 hover:bg-neutral-800"
-            onclick={() => (showSpeedMenu = !showSpeedMenu)}
-          >{playbackRate}x</button>
+          <button class="{pillBase} {pillIdle}" onclick={() => (showSpeedMenu = !showSpeedMenu)}>{playbackRate}x</button>
           {#if showSpeedMenu}
-            <div class="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-lg bg-neutral-900 shadow-xl ring-1 ring-neutral-800">
+            <div class="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-2xl bg-white shadow-xl ring-1 ring-pink-200">
               {#each [0.75, 1, 1.25, 1.5, 1.75, 2] as rate}
                 <button
-                  class="block w-full px-3 py-1.5 text-left text-sm hover:bg-neutral-800 {rate === playbackRate ? 'text-rose-400' : 'text-neutral-200'}"
+                  class="block w-full px-3 py-1.5 text-left text-sm hover:bg-pink-50 {rate === playbackRate ? 'font-semibold text-fuchsia-700' : 'text-fuchsia-600'}"
                   onclick={() => setSpeed(rate)}
                 >{rate}x</button>
               {/each}
@@ -270,18 +268,18 @@
         </div>
 
         <button
-          class="rounded-full px-3 py-1.5 text-sm ring-1 transition {meta.favorite
-            ? 'bg-rose-500/20 text-rose-300 ring-rose-500/40 hover:bg-rose-500/30'
-            : 'bg-neutral-900 text-neutral-200 ring-neutral-800 hover:bg-neutral-800'}"
+          class="{pillBase} {meta.favorite
+            ? 'bg-rose-500 text-white ring-rose-300 hover:bg-rose-400'
+            : pillIdle}"
           onclick={toggleFavorite}
         >
-          {meta.favorite ? '★ Favorited' : '☆ Favorite'}
+          {meta.favorite ? '♥ Favorited' : '♡ Favorite'}
         </button>
 
         <button
-          class="rounded-full px-3 py-1.5 text-sm ring-1 transition {meta.progress.watched
-            ? 'bg-emerald-500/20 text-emerald-300 ring-emerald-500/40 hover:bg-emerald-500/30'
-            : 'bg-neutral-900 text-neutral-200 ring-neutral-800 hover:bg-neutral-800'}"
+          class="{pillBase} {meta.progress.watched
+            ? 'bg-emerald-400 text-white ring-emerald-200 hover:bg-emerald-300'
+            : pillIdle}"
           onclick={toggleWatched}
         >
           {meta.progress.watched ? '✓ Watched' : 'Mark watched'}
@@ -290,31 +288,31 @@
 
       <div class="mt-3 flex gap-2">
         {#if meta.prevId}
-          <a use:link href={`/watch/${meta.prevId}`} class="rounded-full bg-neutral-900 px-3 py-1.5 text-sm text-neutral-200 ring-1 ring-neutral-800 hover:bg-neutral-800">← Previous</a>
+          <a use:link href={`/watch/${meta.prevId}`} class="{pillBase} {pillIdle}">← Previous</a>
         {/if}
         {#if meta.nextId}
-          <a use:link href={`/watch/${meta.nextId}`} class="ml-auto rounded-full bg-neutral-900 px-3 py-1.5 text-sm text-neutral-200 ring-1 ring-neutral-800 hover:bg-neutral-800">Next →</a>
+          <a use:link href={`/watch/${meta.nextId}`} class="ml-auto {pillBase} {pillIdle}">Next →</a>
         {/if}
       </div>
 
-      <div class="mt-4 text-xs text-neutral-500">
+      <div class="mt-4 text-xs text-fuchsia-700/70">
         Shortcuts: Space play/pause · J/L ±10s · ←/→ ±5s · F fullscreen · M mute · 0–9 jump · N/P next/prev · Shift+&lt;/&gt; speed
       </div>
     </div>
 
-    <aside class="lg:max-h-[80vh] lg:overflow-y-auto">
-      <h3 class="mb-2 text-sm font-medium uppercase tracking-wide text-neutral-500">In this series</h3>
+    <aside class="rounded-3xl bg-white/70 p-3 ring-1 ring-pink-200 lg:max-h-[80vh] lg:overflow-y-auto">
+      <h3 class="mb-2 px-2 text-xs font-bold uppercase tracking-wider text-fuchsia-500">In this series</h3>
       <ul class="space-y-1">
         {#each meta.siblings as s (s.id)}
           <li>
             <a
               use:link
               href={`/watch/${s.id}`}
-              class="flex items-baseline gap-2 rounded px-2 py-1.5 text-sm transition {s.current
-                ? 'bg-rose-500/20 text-rose-200'
-                : 'text-neutral-300 hover:bg-neutral-900 hover:text-neutral-100'}"
+              class="flex items-baseline gap-2 rounded-xl px-2 py-1.5 text-sm transition {s.current
+                ? 'bg-gradient-to-r from-pink-100 to-fuchsia-100 font-semibold text-fuchsia-800'
+                : 'text-fuchsia-700 hover:bg-pink-50'}"
             >
-              <span class="w-6 shrink-0 text-right text-neutral-500">{s.episodeNum ?? '·'}</span>
+              <span class="w-6 shrink-0 text-right text-pink-400">{s.episodeNum ?? '·'}</span>
               <span class="truncate">{s.title}</span>
             </a>
           </li>

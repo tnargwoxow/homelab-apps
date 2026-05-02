@@ -30,6 +30,26 @@ interface ChildFolderRow {
   child_count: number;
 }
 
+const SAMPLE_THUMB_LIMIT = 4;
+
+function sampleFolderThumbIds(db: DB, folderId: number): number[] {
+  // Pick up to N video ids with thumbs from this folder or any descendant folder.
+  // Stable pseudo-random across folder ids so the mosaic doesn't change on every refresh.
+  const rows = db.prepare<[number, number], { id: number }>(`
+    WITH RECURSIVE descendants(id) AS (
+      SELECT ?
+      UNION ALL
+      SELECT f.id FROM folders f JOIN descendants d ON f.parent_id = d.id
+    )
+    SELECT v.id FROM videos v
+    JOIN descendants d ON v.folder_id = d.id
+    WHERE v.thumb_path IS NOT NULL
+    ORDER BY (v.id * 2654435761) % 1000003, v.id
+    LIMIT ?
+  `).all(folderId, SAMPLE_THUMB_LIMIT);
+  return rows.map(r => r.id);
+}
+
 function buildBreadcrumb(db: DB, folderId: number): Array<{ id: number; name: string }> {
   const stmt = db.prepare<[number], { id: number; parent_id: number | null; display_name: string }>(
     'SELECT id, parent_id, display_name FROM folders WHERE id = ?'
@@ -90,7 +110,12 @@ function getFolderPayload(db: DB, folderId: number) {
       parentId: folder.parent_id
     },
     breadcrumb: buildBreadcrumb(db, folderId),
-    folders: children.map(c => ({ id: c.id, name: c.display_name, childCount: c.child_count })),
+    folders: children.map(c => ({
+      id: c.id,
+      name: c.display_name,
+      childCount: c.child_count,
+      thumbVideoIds: sampleFolderThumbIds(db, c.id)
+    })),
     videos: videos.map(v => ({
       id: v.id,
       title: v.display_title,

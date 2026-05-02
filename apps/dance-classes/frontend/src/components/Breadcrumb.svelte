@@ -9,20 +9,20 @@
   let { items, final = null }: Props = $props();
 </script>
 
-<nav class="flex flex-wrap items-center gap-1 text-sm text-neutral-400">
-  <a use:link href="/" class="rounded px-1.5 py-0.5 hover:bg-neutral-800 hover:text-neutral-100">Library</a>
+<nav class="flex flex-wrap items-center gap-1 text-sm text-fuchsia-700/80">
+  <a use:link href="/" class="rounded-full px-2 py-0.5 hover:bg-pink-100 hover:text-fuchsia-700">Home</a>
   {#each items as item, i (item.id)}
-    <span class="text-neutral-600">/</span>
+    <span class="text-pink-300">·</span>
     {#if i === items.length - 1 && !final}
-      <span class="rounded px-1.5 py-0.5 text-neutral-100">{item.name}</span>
+      <span class="rounded-full bg-pink-100 px-2 py-0.5 font-semibold text-fuchsia-800">{item.name}</span>
     {:else}
-      <a use:link href={`/folder/${item.id}`} class="rounded px-1.5 py-0.5 hover:bg-neutral-800 hover:text-neutral-100">
+      <a use:link href={`/folder/${item.id}`} class="rounded-full px-2 py-0.5 hover:bg-pink-100 hover:text-fuchsia-700">
         {item.name}
       </a>
     {/if}
   {/each}
   {#if final}
-    <span class="text-neutral-600">/</span>
-    <span class="rounded px-1.5 py-0.5 text-neutral-100">{final}</span>
+    <span class="text-pink-300">·</span>
+    <span class="rounded-full bg-pink-100 px-2 py-0.5 font-semibold text-fuchsia-800">{final}</span>
   {/if}
 </nav>
