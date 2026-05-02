@@ -67,7 +67,7 @@
   </div>
   <div class="mt-2">
     <div class="line-clamp-2 text-sm text-neutral-100 group-hover:text-white">
-      {#if episodeNum !== null}<span class="text-neutral-500">{episodeNum}.</span> {/if}{title}
+      {#if episodeNum !== null}<span class="mr-1 text-neutral-500">{episodeNum}.</span>{/if}{title}
     </div>
   </div>
 </a>

@@ -57,7 +57,9 @@ function buildBreadcrumb(db: DB, folderId: number): Array<{ id: number; name: st
   while (id !== null) {
     const row = stmt.get(id);
     if (!row) break;
-    out.unshift({ id: row.id, name: row.display_name });
+    if (row.parent_id !== null) {
+      out.unshift({ id: row.id, name: row.display_name });
+    }
     id = row.parent_id;
   }
   return out;
