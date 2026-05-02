@@ -44,16 +44,19 @@ interface ErrorRow {
   display_title: string;
   folder_id: number;
   scan_error: string | null;
+  scan_error_ignored: number;
   updated_at: number;
 }
-app.get('/api/library/errors', async () => {
-  const rows = db.prepare<[], ErrorRow>(`
-    SELECT id, rel_path, filename, display_title, folder_id, scan_error, updated_at
+app.get<{ Querystring: { includeIgnored?: string } }>('/api/library/errors', async req => {
+  const includeIgnored = req.query?.includeIgnored === '1' || req.query?.includeIgnored === 'true';
+  const sql = `
+    SELECT id, rel_path, filename, display_title, folder_id, scan_error, scan_error_ignored, updated_at
     FROM videos
-    WHERE scan_status = 'error'
-    ORDER BY updated_at DESC
+    WHERE scan_status = 'error' ${includeIgnored ? '' : 'AND scan_error_ignored = 0'}
+    ORDER BY scan_error_ignored ASC, updated_at DESC
     LIMIT 200
-  `).all();
+  `;
+  const rows = db.prepare<[], ErrorRow>(sql).all();
   return {
     items: rows.map(r => ({
       id: r.id,
@@ -62,9 +65,43 @@ app.get('/api/library/errors', async () => {
       title: r.display_title,
       folderId: r.folder_id,
       error: r.scan_error,
+      ignored: !!r.scan_error_ignored,
       updatedAt: r.updated_at
     }))
   };
+});
+
+// Ignore: keep the row's scan_status='error' but stop showing it in the
+// errors badge and modal. Idempotent.
+app.post<{ Params: { id: string } }>('/api/library/errors/:id/ignore', async (req, reply) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return reply.code(400).send({ error: 'Bad video id' });
+  db.prepare(
+    "UPDATE videos SET scan_error_ignored = 1, updated_at = unixepoch() WHERE id = ? AND scan_status = 'error'"
+  ).run(id);
+  return { ok: true };
+});
+
+// Restore: bring the error back into view.
+app.post<{ Params: { id: string } }>('/api/library/errors/:id/restore', async (req, reply) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return reply.code(400).send({ error: 'Bad video id' });
+  db.prepare(
+    "UPDATE videos SET scan_error_ignored = 0, updated_at = unixepoch() WHERE id = ?"
+  ).run(id);
+  return { ok: true };
+});
+
+// Retry: flip the row back to 'pending' so the scanner queue picks it up
+// again on the next pump tick. Useful after fixing the underlying issue
+// (re-encoded the file, replaced it, etc.).
+app.post<{ Params: { id: string } }>('/api/library/errors/:id/retry', async (req, reply) => {
+  const id = Number.parseInt(req.params.id, 10);
+  if (!Number.isFinite(id)) return reply.code(400).send({ error: 'Bad video id' });
+  db.prepare(
+    "UPDATE videos SET scan_status = 'pending', scan_error = NULL, scan_error_ignored = 0, updated_at = unixepoch() WHERE id = ?"
+  ).run(id);
+  return { ok: true };
 });
 
 await app.register(registerLibraryRoutes, { db });

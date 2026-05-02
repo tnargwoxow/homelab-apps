@@ -225,7 +225,7 @@ export function getStatus(db: DB): {
       COUNT(*) AS total,
       SUM(CASE WHEN scan_status IN ('probed','ready') THEN 1 ELSE 0 END) AS probed,
       SUM(CASE WHEN thumb_path IS NOT NULL THEN 1 ELSE 0 END) AS thumbnailed,
-      SUM(CASE WHEN scan_status='error' THEN 1 ELSE 0 END) AS errored
+      SUM(CASE WHEN scan_status='error' AND scan_error_ignored = 0 THEN 1 ELSE 0 END) AS errored
     FROM videos
   `).get() ?? { total: 0, probed: 0, thumbnailed: 0, errored: 0 };
 

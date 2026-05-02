@@ -136,6 +136,7 @@ export interface LibraryErrorItem {
   title: string;
   folderId: number;
   error: string | null;
+  ignored: boolean;
   updatedAt: number;
 }
 
@@ -200,7 +201,11 @@ export const api = {
     if (date) qs.set('date', date);
     return get<{ items: StatsListItem[] }>(`/api/stats/list?${qs}`);
   },
-  libraryErrors: () => get<{ items: LibraryErrorItem[] }>('/api/library/errors'),
+  libraryErrors: (includeIgnored = false) =>
+    get<{ items: LibraryErrorItem[] }>(`/api/library/errors${includeIgnored ? '?includeIgnored=1' : ''}`),
+  ignoreLibraryError:  (id: number) => send<{ ok: boolean }>(`/api/library/errors/${id}/ignore`,  'POST'),
+  restoreLibraryError: (id: number) => send<{ ok: boolean }>(`/api/library/errors/${id}/restore`, 'POST'),
+  retryLibraryError:   (id: number) => send<{ ok: boolean }>(`/api/library/errors/${id}/retry`,   'POST'),
   addFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'POST'),
   removeFavorite: (id: number) => send<{ ok: boolean }>(`/api/favorites/${id}`, 'DELETE'),
   thumbUrl: (id: number) => `/api/videos/${id}/thumb`,

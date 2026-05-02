@@ -1,7 +1,7 @@
 <script lang="ts">
   import { link } from 'svelte-spa-router';
   import { api } from '../lib/api';
-  import type { StatsListItem } from '../lib/api';
+  import type { StatsListItem, LibraryErrorItem } from '../lib/api';
   import { formatDuration } from '../lib/format';
 
   interface Props {
@@ -17,28 +17,75 @@
   let { open, title, subtitle = '', source, range = 'this-week', date, onClose }: Props = $props();
 
   let items = $state<StatsListItem[]>([]);
-  let errorItems = $state<{ id: number; title: string; error: string | null; relPath: string }[]>([]);
+  let errorItems = $state<LibraryErrorItem[]>([]);
   let loading = $state(false);
   let fetchError = $state<string | null>(null);
 
-  $effect(() => {
-    if (!open) return;
+  // Errors-mode state
+  let showIgnored = $state(false);
+  let busyIds = $state<Set<number>>(new Set());
+
+  async function loadErrors() {
     loading = true;
     fetchError = null;
-    items = [];
-    errorItems = [];
+    try {
+      const r = await api.libraryErrors(showIgnored);
+      errorItems = r.items;
+    } catch (e) { fetchError = (e as Error).message; }
+    finally { loading = false; }
+  }
+
+  $effect(() => {
+    if (!open) return;
     if (source === 'stats') {
+      loading = true;
+      fetchError = null;
+      items = [];
       api.statsList(range, date)
         .then(r => { items = r.items; })
         .catch(e => { fetchError = (e as Error).message; })
         .finally(() => { loading = false; });
     } else {
-      api.libraryErrors()
-        .then(r => { errorItems = r.items.map(i => ({ id: i.id, title: i.title || i.filename, error: i.error, relPath: i.relPath })); })
-        .catch(e => { fetchError = (e as Error).message; })
-        .finally(() => { loading = false; });
+      void loadErrors();
     }
   });
+
+  async function withBusy(id: number, fn: () => Promise<unknown>) {
+    if (busyIds.has(id)) return;
+    busyIds = new Set(busyIds).add(id);
+    try { await fn(); }
+    catch (e) { fetchError = (e as Error).message; }
+    finally {
+      const next = new Set(busyIds); next.delete(id); busyIds = next;
+    }
+  }
+
+  async function ignore(id: number) {
+    await withBusy(id, async () => {
+      await api.ignoreLibraryError(id);
+      if (showIgnored) {
+        // Item stays in the list, just flip its flag locally.
+        errorItems = errorItems.map(e => e.id === id ? { ...e, ignored: true } : e);
+      } else {
+        errorItems = errorItems.filter(e => e.id !== id);
+      }
+    });
+  }
+
+  async function restore(id: number) {
+    await withBusy(id, async () => {
+      await api.restoreLibraryError(id);
+      errorItems = errorItems.map(e => e.id === id ? { ...e, ignored: false } : e);
+    });
+  }
+
+  async function retry(id: number) {
+    await withBusy(id, async () => {
+      await api.retryLibraryError(id);
+      // It moves out of the errors set now; remove from view.
+      errorItems = errorItems.filter(e => e.id !== id);
+    });
+  }
 
   function fmtRelative(unixSeconds: number): string {
     const diffMs = Date.now() - unixSeconds * 1000;
@@ -85,6 +132,20 @@
         >✕</button>
       </div>
 
+      {#if source === 'errors'}
+        <div class="flex items-center justify-end gap-2 px-5 py-2 text-xs" style="border-bottom: 1px solid var(--theme-card-ring); color: var(--theme-text-muted);">
+          <label class="flex cursor-pointer items-center gap-1.5">
+            <input
+              type="checkbox"
+              bind:checked={showIgnored}
+              onchange={() => loadErrors()}
+              class="h-3.5 w-3.5"
+            />
+            Show ignored
+          </label>
+        </div>
+      {/if}
+
       <div class="flex-1 overflow-y-auto">
         {#if loading}
           <div class="px-5 py-10 text-center" style="color: var(--theme-text-muted);">Loading…</div>
@@ -127,12 +188,17 @@
           {/if}
         {:else}
           {#if errorItems.length === 0}
-            <div class="px-5 py-10 text-center" style="color: var(--theme-text-muted);">No errors. 🎉</div>
+            <div class="px-5 py-10 text-center" style="color: var(--theme-text-muted);">
+              {showIgnored ? 'No errors (ignored or otherwise). 🎉' : 'No active errors. 🎉'}
+            </div>
           {:else}
             <ul>
               {#each errorItems as e (e.id)}
-                <li class="px-4 py-3" style="border-bottom: 1px solid var(--theme-card-ring);">
-                  <div class="text-sm font-semibold" style="color: var(--theme-text-strong); overflow-wrap: anywhere;">{e.title}</div>
+                <li class="px-4 py-3" style="border-bottom: 1px solid var(--theme-card-ring); opacity: {e.ignored ? 0.55 : 1};">
+                  <div class="flex items-baseline gap-2">
+                    {#if e.ignored}<span class="rounded-full px-1.5 py-0.5 text-[10px]" style="background: var(--theme-card-ring); color: var(--theme-text-muted);">IGNORED</span>{/if}
+                    <span class="min-w-0 flex-1 text-sm font-semibold" style="color: var(--theme-text-strong); overflow-wrap: anywhere;">{e.title}</span>
+                  </div>
                   <div class="mt-0.5 text-[11px]" style="color: var(--theme-text-muted); overflow-wrap: anywhere;">{e.relPath}</div>
                   {#if e.error}
                     <div class="mt-1.5 rounded-md p-2 text-[11px]"
@@ -140,6 +206,34 @@
                       {e.error}
                     </div>
                   {/if}
+                  <div class="mt-2 flex flex-wrap items-center gap-2">
+                    {#if e.ignored}
+                      <button
+                        type="button"
+                        class="rounded-full px-3 py-1 text-xs ring-1 disabled:opacity-50"
+                        style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+                        disabled={busyIds.has(e.id)}
+                        onclick={() => restore(e.id)}
+                      >Restore</button>
+                    {:else}
+                      <button
+                        type="button"
+                        class="rounded-full px-3 py-1 text-xs ring-1 disabled:opacity-50"
+                        style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+                        disabled={busyIds.has(e.id)}
+                        title="Hide this error"
+                        onclick={() => ignore(e.id)}
+                      >🙈 Ignore</button>
+                    {/if}
+                    <button
+                      type="button"
+                      class="rounded-full px-3 py-1 text-xs ring-1 disabled:opacity-50"
+                      style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+                      disabled={busyIds.has(e.id)}
+                      title="Mark for re-scanning"
+                      onclick={() => retry(e.id)}
+                    >↻ Retry</button>
+                  </div>
                 </li>
               {/each}
             </ul>
