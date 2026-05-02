@@ -6,7 +6,7 @@
   import type { VideoMeta } from '../lib/api';
   import Breadcrumb from '../components/Breadcrumb.svelte';
   import CastButton from '../components/CastButton.svelte';
-  import { activeCast, castApi, refreshCastSoon } from '../lib/cast';
+  import { activeCast, castApi, refreshCastSoon, setCastLoop } from '../lib/cast';
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
 
@@ -30,6 +30,64 @@
   const SAVE_INTERVAL_MS = 5000;
   const SAVE_DELTA_S = 4;
 
+  // A-B loop: session-only, cleared whenever the video changes.
+  let loopA = $state<number | null>(null);
+  let loopB = $state<number | null>(null);
+
+  // Picture-in-picture state
+  let pipEnabled = $state(false);
+  let pipActive = $state(false);
+
+  // Apply pitch preservation across browsers. Some engines reset this each
+  // time playbackRate changes, so call this from setSpeed too.
+  function applyPreservesPitch() {
+    if (!videoEl) return;
+    try {
+      videoEl.preservesPitch = true;
+      // Legacy vendor-prefixed properties for older Firefox / WebKit
+      (videoEl as unknown as { mozPreservesPitch?: boolean }).mozPreservesPitch = true;
+      (videoEl as unknown as { webkitPreservesPitch?: boolean }).webkitPreservesPitch = true;
+    } catch { /* ignore */ }
+  }
+
+  function currentPosition(): number {
+    const cast = get(activeCast);
+    if (cast?.session && meta && cast.session.videoId === meta.id) {
+      return cast.session.position ?? 0;
+    }
+    return videoEl?.currentTime ?? 0;
+  }
+
+  function setLoopA() {
+    loopA = Math.max(0, currentPosition());
+    // If existing B is now invalid, drop it.
+    if (loopB !== null && loopB <= loopA) loopB = null;
+    syncCastLoop();
+  }
+
+  function setLoopB() {
+    if (loopA === null) return;
+    const pos = currentPosition();
+    if (pos <= loopA + 0.5) return; // need a meaningful range
+    loopB = pos;
+    syncCastLoop();
+  }
+
+  function clearLoop() {
+    loopA = null;
+    loopB = null;
+    syncCastLoop();
+  }
+
+  function syncCastLoop() {
+    const cast = get(activeCast);
+    if (cast?.session && meta && cast.session.videoId === meta.id && loopA !== null && loopB !== null) {
+      setCastLoop({ deviceId: cast.id, a: loopA, b: loopB });
+    } else {
+      setCastLoop(null);
+    }
+  }
+
   function clearCountdown() {
     if (countdownTimer) {
       clearInterval(countdownTimer);
@@ -51,6 +109,10 @@
     showResumeBanner = false;
     resumePosition = 0;
     clearCountdown();
+    // New video — drop any A-B loop from the previous one.
+    loopA = null;
+    loopB = null;
+    setCastLoop(null);
 
     api.video(id)
       .then(m => {
@@ -70,6 +132,7 @@
       videoEl.currentTime = meta.progress.position;
     }
     videoEl.playbackRate = playbackRate;
+    applyPreservesPitch();
     // Only autoplay locally when there isn't an active cast — otherwise
     // we'd play on the phone AND on the TV at the same time.
     if (!get(activeCast)?.session) {
@@ -122,6 +185,11 @@
   }
 
   function onTimeUpdate() {
+    // Local A-B loop: snap back to A when we cross B. Native timeupdate
+    // fires ~4×/sec which is precise enough for practice loops.
+    if (videoEl && loopA !== null && loopB !== null && videoEl.currentTime >= loopB - 0.05) {
+      try { videoEl.currentTime = loopA; } catch { /* ignore */ }
+    }
     if (Date.now() - lastSaveTs < SAVE_INTERVAL_MS) return;
     saveNow();
   }
@@ -185,7 +253,11 @@
 
   function setSpeed(rate: number) {
     playbackRate = rate;
-    if (videoEl) videoEl.playbackRate = rate;
+    if (videoEl) {
+      videoEl.playbackRate = rate;
+      // Some engines reset preservesPitch when playbackRate changes.
+      applyPreservesPitch();
+    }
     showSpeedMenu = false;
   }
 
@@ -223,6 +295,9 @@
         castApi.seek(cast.id, dur * (Number(k) / 10)).catch(() => {});
       } else if (k === 'n' && meta.nextId) { push(`/watch/${meta.nextId}`); }
       else if (k === 'p' && meta.prevId)   { push(`/watch/${meta.prevId}`); }
+      else if (k === '[') { setLoopA(); }
+      else if (k === ']') { setLoopB(); }
+      else if (k === '\\') { clearLoop(); }
       return;
     }
 
@@ -247,7 +322,10 @@
     } else if (k === 'n' && meta.nextId) { push(`/watch/${meta.nextId}`); }
     else if (k === 'p' && meta.prevId) { push(`/watch/${meta.prevId}`); }
     else if (k === '>' || (e.shiftKey && k === '.')) { setSpeed(Math.min(2, +(playbackRate + 0.25).toFixed(2))); }
-    else if (k === '<' || (e.shiftKey && k === ',')) { setSpeed(Math.max(0.5, +(playbackRate - 0.25).toFixed(2))); }
+    else if (k === '<' || (e.shiftKey && k === ',')) { setSpeed(Math.max(0.25, +(playbackRate - 0.25).toFixed(2))); }
+    else if (k === '[') { setLoopA(); }
+    else if (k === ']') { setLoopB(); }
+    else if (k === '\\') { clearLoop(); }
   }
 
   function onUnload() {
@@ -257,6 +335,7 @@
   }
 
   $effect(() => {
+    pipEnabled = typeof document !== 'undefined' && (document as Document & { pictureInPictureEnabled?: boolean }).pictureInPictureEnabled === true;
     window.addEventListener('keydown', onKey);
     window.addEventListener('beforeunload', onUnload);
     window.addEventListener('pagehide', onUnload);
@@ -266,6 +345,33 @@
       window.removeEventListener('pagehide', onUnload);
     };
   });
+
+  // Bind PiP enter/leave events on the local <video> so the UI stays in sync
+  // with the browser's native PiP toggle (e.g. user closes the floating
+  // window via its own X button).
+  $effect(() => {
+    if (!videoEl) return;
+    const onEnter = () => { pipActive = true; };
+    const onLeave = () => { pipActive = false; };
+    videoEl.addEventListener('enterpictureinpicture', onEnter);
+    videoEl.addEventListener('leavepictureinpicture', onLeave);
+    return () => {
+      videoEl?.removeEventListener('enterpictureinpicture', onEnter);
+      videoEl?.removeEventListener('leavepictureinpicture', onLeave);
+    };
+  });
+
+  async function togglePip() {
+    if (!videoEl) return;
+    try {
+      const doc = document as Document & { pictureInPictureElement?: Element | null; exitPictureInPicture?: () => Promise<void> };
+      if (doc.pictureInPictureElement === videoEl) {
+        await doc.exitPictureInPicture?.();
+      } else {
+        await (videoEl as HTMLVideoElement & { requestPictureInPicture?: () => Promise<unknown> }).requestPictureInPicture?.();
+      }
+    } catch { /* user gesture / unsupported */ }
+  }
 
   onDestroy(() => {
     onUnload();
@@ -376,7 +482,7 @@
           {#if showSpeedMenu}
             <div class="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-2xl shadow-xl ring-1"
                  style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
-              {#each [0.75, 1, 1.25, 1.5, 1.75, 2] as rate}
+              {#each [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] as rate}
                 <button
                   class="block w-full px-3 py-1.5 text-left text-sm"
                   style={
@@ -414,6 +520,60 @@
         </button>
       </div>
 
+      <!-- A-B loop + PiP row. The loop pills work for both local and cast
+           playback; PiP is local-only and hidden while casting. -->
+      <div class="mt-2 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          class={pillBase}
+          data-active={loopA !== null ? '1' : '0'}
+          style={loopA !== null ? pillActiveStyle : pillIdleStyle}
+          onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+          onclick={setLoopA}
+          title="Set loop start at the current position ([)"
+        >🔁 A {loopA !== null ? formatDuration(loopA) : ''}</button>
+
+        <button
+          type="button"
+          class={pillBase}
+          data-active={loopB !== null ? '1' : '0'}
+          style={loopB !== null ? pillActiveStyle : pillIdleStyle}
+          disabled={loopA === null}
+          onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+          onclick={setLoopB}
+          title="Set loop end at the current position (])"
+        >🔁 B {loopB !== null ? formatDuration(loopB) : ''}</button>
+
+        {#if loopA !== null || loopB !== null}
+          <button
+            type="button"
+            class={pillBase}
+            style={pillIdleStyle}
+            onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+            onclick={clearLoop}
+            title="Clear A-B loop (\\)"
+          >× Loop</button>
+        {/if}
+
+        {#if loopA !== null && loopB !== null}
+          <span class="text-xs" style="color: var(--theme-text-muted);">
+            Looping {formatDuration(loopB - loopA)}
+          </span>
+        {/if}
+
+        {#if pipEnabled && !isCastingThisVideo}
+          <button
+            type="button"
+            class="ml-auto {pillBase}"
+            data-active={pipActive ? '1' : '0'}
+            style={pipActive ? pillActiveStyle : pillIdleStyle}
+            onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+            onclick={togglePip}
+            title="Picture-in-picture"
+          >🪟 PiP</button>
+        {/if}
+      </div>
+
       <div class="mt-3 flex flex-wrap items-center gap-2">
         {#if meta.prevId}
           <a use:link href={`/watch/${meta.prevId}`} class={pillBase} style={pillIdleStyle}
@@ -434,7 +594,7 @@
       </div>
 
       <div class="mt-4 text-xs" style="color: var(--theme-text-muted);">
-        Shortcuts: Space play/pause · J/L ±10s · ←/→ ±5s · F fullscreen · M mute · 0–9 jump · N/P next/prev · Shift+&lt;/&gt; speed
+        Shortcuts: Space play/pause · J/L ±10s · ←/→ ±5s · F fullscreen · M mute · 0–9 jump · N/P next/prev · Shift+&lt;/&gt; speed · [ /] /\ A-B loop
       </div>
     </div>
 

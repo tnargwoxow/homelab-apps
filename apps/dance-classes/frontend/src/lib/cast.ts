@@ -86,7 +86,21 @@ export const activeCast = derived(castDevices, $devices => {
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let pollInFlight = false;
-let pollIntervalMs = 5000;
+let baseIntervalMs = 5000;
+
+// Optional A-B loop in effect on the active cast. While set, polling speeds
+// up to ~1s so we can snap back to A reasonably tightly when position passes B.
+interface CastLoop { deviceId: string; a: number; b: number; }
+let castLoop: CastLoop | null = null;
+
+function activeIntervalMs(): number {
+  return castLoop ? 1000 : baseIntervalMs;
+}
+
+function reschedule() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(poll, activeIntervalMs());
+}
 
 async function poll() {
   if (pollInFlight) return;
@@ -95,6 +109,16 @@ async function poll() {
     const r = await castApi.devices();
     castAvailable.set(r.available);
     castDevices.set(r.devices);
+
+    // Enforce the cast-side A-B loop here so it works regardless of which
+    // page the user is on (or even if they've closed the Watch tab).
+    if (castLoop) {
+      const dev = r.devices.find(d => d.id === castLoop!.deviceId);
+      const pos = dev?.session?.position ?? -1;
+      if (pos >= castLoop.b - 0.5) {
+        try { await castApi.seek(castLoop.deviceId, castLoop.a); } catch { /* ignore */ }
+      }
+    }
   } catch {
     // ignore — preserve last known state
   } finally {
@@ -103,9 +127,9 @@ async function poll() {
 }
 
 export function startCastPolling(intervalMs = 5000): () => void {
-  pollIntervalMs = intervalMs;
+  baseIntervalMs = intervalMs;
   void poll();
-  pollTimer = setInterval(poll, pollIntervalMs);
+  pollTimer = setInterval(poll, activeIntervalMs());
   return () => {
     if (pollTimer) clearInterval(pollTimer);
     pollTimer = null;
@@ -115,4 +139,14 @@ export function startCastPolling(intervalMs = 5000): () => void {
 // Trigger an immediate refresh — useful right after starting/stopping a cast.
 export function refreshCastSoon(delay = 600) {
   setTimeout(() => void poll(), delay);
+}
+
+/**
+ * Activate (or clear) a cast-side A-B loop. While active, the polling
+ * interval drops to ~1s and the poller will seek back to `a` whenever the
+ * device's reported position passes `b`.
+ */
+export function setCastLoop(loop: CastLoop | null): void {
+  castLoop = loop;
+  if (pollTimer) reschedule();
 }
