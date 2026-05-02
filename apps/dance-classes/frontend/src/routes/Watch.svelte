@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
   import { push, link } from 'svelte-spa-router';
   import { api, sendProgressBeacon } from '../lib/api';
   import type { VideoMeta } from '../lib/api';
   import Breadcrumb from '../components/Breadcrumb.svelte';
   import CastButton from '../components/CastButton.svelte';
+  import { activeCast, castApi, refreshCastSoon } from '../lib/cast';
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
 
@@ -68,10 +70,49 @@
       videoEl.currentTime = meta.progress.position;
     }
     videoEl.playbackRate = playbackRate;
+    // Only autoplay locally when there isn't an active cast — otherwise
+    // we'd play on the phone AND on the TV at the same time.
+    if (!get(activeCast)?.session) {
+      videoEl.play().catch(() => { /* user gesture required, fine */ });
+    }
   }
+
+  // When a cast is active and the user navigates to a new video, hand the
+  // new video off to the same TV instead of starting local playback. Once
+  // a route has been "handed off", remember it so we don't loop.
+  let lastCastSwitchVideoId: number | null = null;
+  $effect(() => {
+    if (!meta) return;
+    const cast = $activeCast;
+    if (!cast?.session) return;
+
+    // Always pause local; the TV is what's playing.
+    try { videoEl?.pause(); } catch { /* ignore */ }
+
+    if (cast.session.videoId === meta.id) {
+      lastCastSwitchVideoId = meta.id;
+      return;
+    }
+    if (lastCastSwitchVideoId === meta.id) return;
+    lastCastSwitchVideoId = meta.id;
+
+    const start = meta.progress?.position && meta.progress.position > 5
+      ? meta.progress.position
+      : undefined;
+    castApi.play(cast.id, meta.id, start)
+      .then(() => refreshCastSoon())
+      .catch(err => { error = `Cast failed: ${err.message ?? err}`; });
+  });
+
+  let isCastingThisVideo = $derived(
+    !!($activeCast?.session && meta && $activeCast.session.videoId === meta.id)
+  );
 
   function saveNow(force = false) {
     if (!videoEl || !meta) return;
+    // While casting this video, the local element is paused at 0 — saving
+    // would overwrite the real (TV-side) position with 0. Skip it.
+    if (get(activeCast)?.session?.videoId === meta.id) return;
     const pos = videoEl.currentTime;
     const dur = Number.isFinite(videoEl.duration) ? videoEl.duration : meta.durationSec;
     if (!force && Math.abs(pos - lastSavePos) < SAVE_DELTA_S) return;
@@ -139,10 +180,32 @@
   }
 
   function onKey(e: KeyboardEvent) {
-    if (!videoEl || !meta) return;
+    if (!meta) return;
     const target = e.target as HTMLElement | null;
     if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable)) return;
     const k = e.key.toLowerCase();
+
+    // Route to the cast when active — the local player isn't doing anything.
+    const cast = get(activeCast);
+    if (cast?.session && cast.session.videoId === meta.id) {
+      const pos = cast.session.position ?? 0;
+      const dur = cast.session.duration ?? null;
+      if (k === ' ') {
+        e.preventDefault();
+        if (cast.session.state === 'paused') castApi.resume(cast.id).catch(() => {});
+        else castApi.pause(cast.id).catch(() => {});
+      } else if (k === 'j')          castApi.seek(cast.id, Math.max(0, pos - 10)).catch(() => {});
+      else if (k === 'l')            castApi.seek(cast.id, pos + 10).catch(() => {});
+      else if (k === 'arrowleft')    castApi.seek(cast.id, Math.max(0, pos - 5)).catch(() => {});
+      else if (k === 'arrowright')   castApi.seek(cast.id, pos + 5).catch(() => {});
+      else if (k >= '0' && k <= '9' && dur) {
+        castApi.seek(cast.id, dur * (Number(k) / 10)).catch(() => {});
+      } else if (k === 'n' && meta.nextId) { push(`/watch/${meta.nextId}`); }
+      else if (k === 'p' && meta.prevId)   { push(`/watch/${meta.prevId}`); }
+      return;
+    }
+
+    if (!videoEl) return;
     if (k === ' ') {
       e.preventDefault();
       if (videoEl.paused) videoEl.play().catch(() => {});
@@ -220,7 +283,6 @@
           src={api.streamUrl(meta.id)}
           controls
           preload="metadata"
-          autoplay
           onloadedmetadata={onLoadedMeta}
           ontimeupdate={onTimeUpdate}
           onpause={onPause}
@@ -228,6 +290,17 @@
           onended={onEnded}
           class="aspect-video w-full bg-black"
         ></video>
+
+        {#if isCastingThisVideo && $activeCast}
+          <div class="absolute inset-0 z-10 flex items-center justify-center bg-black/85 text-white">
+            <div class="px-6 text-center">
+              <div class="text-5xl">📺</div>
+              <div class="mt-3 font-display text-2xl">Casting to {$activeCast.name}</div>
+              <div class="mt-1 text-sm opacity-80">{$activeCast.session?.title ?? meta.title}</div>
+              <div class="mt-3 text-xs opacity-60">Use the player at the bottom of the screen for play / pause / seek.</div>
+            </div>
+          </div>
+        {/if}
 
         {#if showResumeBanner}
           <div class="absolute left-1/2 top-4 -translate-x-1/2 rounded-full px-4 py-2 text-sm shadow-lg ring-1"
