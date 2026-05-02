@@ -601,16 +601,16 @@
       </div>
     </div>
 
-    <aside class="rounded-3xl p-3 ring-1 lg:max-h-[80vh] lg:overflow-y-auto"
+    <aside class="min-w-0 max-w-full overflow-hidden rounded-3xl p-3 ring-1 lg:max-h-[80vh] lg:overflow-y-auto"
            style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
       <h3 class="mb-2 px-2 text-xs font-bold uppercase tracking-wider" style="color: var(--theme-text-muted);">{$theme.sections.inSeries}</h3>
       <ul class="space-y-1">
         {#each meta.siblings as s (s.id)}
-          <li>
+          <li class="min-w-0">
             <a
               use:link
               href={`/watch/${s.id}`}
-              class="flex items-baseline gap-2 rounded-xl px-2 py-1.5 text-sm transition"
+              class="flex min-w-0 items-baseline gap-2 rounded-xl px-2 py-1.5 text-sm transition"
               style={
                 s.current
                   ? 'background: var(--theme-pill-hover); font-weight: 600; color: var(--theme-text-strong);'
@@ -620,7 +620,7 @@
               onmouseout={(e)  => { if (!s.current) (e.currentTarget as HTMLAnchorElement).style.background = 'transparent'; }}
             >
               <span class="w-6 shrink-0 text-right" style="color: var(--theme-text-muted);">{s.episodeNum ?? '·'}</span>
-              <span class="truncate">{s.title}</span>
+              <span class="min-w-0 flex-1 truncate">{s.title}</span>
             </a>
           </li>
         {/each}

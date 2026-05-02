@@ -148,6 +148,9 @@ html, body {
   width: 100%;
   max-width: 100%;
   position: relative;
+  /* Stops Samsung Internet from horizontal-scrolling the page even when
+     a stray child node briefly overflows. Vertical scroll still works. */
+  touch-action: pan-y;
 }
 
 #app {
