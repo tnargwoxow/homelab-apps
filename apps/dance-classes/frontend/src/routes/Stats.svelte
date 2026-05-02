@@ -7,7 +7,9 @@
   import Sparkle from '../components/Sparkle.svelte';
   import StatsListModal from '../components/StatsListModal.svelte';
   import StreakFlame from '../components/StreakFlame.svelte';
+  import CalendarHeatmap from '../components/CalendarHeatmap.svelte';
   import { celebrate } from '../lib/celebrate';
+  import type { CalendarPayload } from '../lib/api';
 
   const STREAK_STORAGE_KEY = 'mimi:lastSeenStreak';
 
@@ -21,12 +23,15 @@
   }
 
   let data = $state<StatsPayload | null>(null);
+  let calendar = $state<CalendarPayload | null>(null);
   let loading = $state(true);
   let error = $state<string | null>(null);
 
   onMount(async () => {
     try {
-      data = await api.stats();
+      const [s, c] = await Promise.all([api.stats(), api.calendar(365)]);
+      data = s;
+      calendar = c;
       const prev = Number(window.localStorage.getItem(STREAK_STORAGE_KEY) ?? 0);
       if (data.streak.current > prev) celebrate('big');
       window.localStorage.setItem(STREAK_STORAGE_KEY, String(data.streak.current));
@@ -194,6 +199,21 @@
       </button>
     {/each}
   </section>
+
+  <!-- 365-day calendar -->
+  {#if calendar}
+    <section class="mb-8 rounded-2xl p-4 ring-1 shadow-sm"
+             style="background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);">
+      <h2 class="mb-3 flex items-baseline justify-between">
+        <span class="font-display text-xl" style="color: var(--theme-text-strong);">Last 365 days</span>
+        <span class="text-xs" style="color: var(--theme-text-muted);">
+          {Math.round(calendar.days.reduce((a, x) => a + x.seconds, 0) / 60)} min total
+        </span>
+      </h2>
+      <CalendarHeatmap days={calendar.days}
+                       onClickDay={(date) => openList(shortDay(date), `${fmtMinutes(calendar?.days.find(x => x.day === date)?.seconds ?? 0)} watched`, 'all', date)} />
+    </section>
+  {/if}
 
   <!-- 30-day heatmap -->
   <section class="mb-8 rounded-2xl p-4 ring-1 shadow-sm"

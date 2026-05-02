@@ -137,6 +137,10 @@ export interface StatsListItem {
   updatedAt: number;
 }
 
+export interface CalendarPayload {
+  days: Array<{ day: string; classes: number; seconds: number }>;
+}
+
 export interface LibraryErrorItem {
   id: number;
   relPath: string;
@@ -204,6 +208,7 @@ export const api = {
   setWatched: (id: number, watched: boolean) =>
     send<{ ok: boolean; watched: boolean }>(`/api/videos/${id}/watched`, 'POST', { watched }),
   stats: () => get<StatsPayload>('/api/stats'),
+  calendar: (days = 365) => get<CalendarPayload>(`/api/stats/calendar?days=${days}`),
   statsList: (range: string, date?: string) => {
     const qs = new URLSearchParams({ range });
     if (date) qs.set('date', date);

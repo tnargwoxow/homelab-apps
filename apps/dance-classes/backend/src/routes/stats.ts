@@ -340,6 +340,45 @@ export async function registerStatsRoutes(
   });
 
   // -------------------------------------------------------------------------
+  // /api/stats/calendar — rolling N-day grid for the GitHub-style heatmap.
+  //   ?days = 1..730  (default 365)
+  // Same shape as the daily30 buckets in /api/stats but lazy-loaded so the
+  // main stats payload stays cheap for the hero cards.
+  // -------------------------------------------------------------------------
+  app.get<{ Querystring: { days?: string } }>('/api/stats/calendar', async (req, reply) => {
+    const requested = Number.parseInt(req.query?.days ?? '365', 10);
+    const days = Number.isFinite(requested) ? Math.min(730, Math.max(1, requested)) : 365;
+
+    const dailyRows = db.prepare<[number, string], DayBucket>(`
+      SELECT
+        DATE(updated_at, 'unixepoch', 'localtime') AS day,
+        COUNT(DISTINCT video_id)                   AS classes,
+        SUM(
+          CASE
+            WHEN watched = 1 AND duration_seconds IS NOT NULL THEN duration_seconds
+            ELSE position_seconds
+          END
+        )                                          AS seconds
+      FROM progress
+      WHERE position_seconds > ?
+        AND updated_at >= unixepoch('now', ?)
+      GROUP BY day
+      ORDER BY day ASC
+    `).all(MIN_SECONDS_FOR_PRACTICE, `-${days - 1} days`);
+    const dailyByDay = new Map(dailyRows.map(d => [d.day, d]));
+    const out: DayBucket[] = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().slice(0, 10);
+      const hit = dailyByDay.get(key);
+      out.push({ day: key, classes: hit?.classes ?? 0, seconds: hit?.seconds ?? 0 });
+    }
+    void reply;
+    return { days: out };
+  });
+
+  // -------------------------------------------------------------------------
   // /api/stats/list — drill-down: which videos contributed to a given stat?
   //   ?range = 'this-week' | 'this-month' | 'last-30' | 'all'
   //   ?date  = 'YYYY-MM-DD' (overrides range; returns just that calendar day)
