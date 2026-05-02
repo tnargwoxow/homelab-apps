@@ -117,39 +117,38 @@ export function play(deviceId: string, mediaUrl: string, opts: PlayOpts): Promis
   if (!device) return Promise.reject(new Error(`Cast device not found: ${deviceId}`));
 
   return new Promise((resolve, reject) => {
-    device.play(
-      mediaUrl,
-      { title: opts.title, contentType: 'video/mp4' },
-      (err: Error | null) => {
-        if (err) return reject(err);
+    // chromecast-api 0.4.x reads `opts.startTime` (seconds) and ignores
+    // anything else — title/contentType were no-ops and the manual seekTo
+    // we used to fire 1.8s later was racing the player's IDLE → BUFFERING
+    // transition and triggering the 500. Pass startTime here instead.
+    const playOpts = opts.startTime && opts.startTime > 5
+      ? { startTime: Math.floor(opts.startTime) }
+      : {};
 
-        const startedAt = Date.now();
-        sessions.set(deviceId, {
+    device.play(mediaUrl, playOpts, (err: Error | null) => {
+      if (err) {
+        logger?.error?.({ err, deviceId, mediaUrl }, 'cast play failed');
+        return reject(err);
+      }
+
+      const startedAt = Date.now();
+      sessions.set(deviceId, {
+        videoId: opts.videoId,
+        title: opts.title,
+        duration: opts.durationSec,
+        startedAt,
+        lastStatus: buildIdleStatus(deviceId, {
           videoId: opts.videoId,
           title: opts.title,
           duration: opts.durationSec,
           startedAt,
-          lastStatus: buildIdleStatus(deviceId, {
-            videoId: opts.videoId,
-            title: opts.title,
-            duration: opts.durationSec,
-            startedAt,
-            state: 'loading',
-            position: opts.startTime ?? 0
-          }),
-          lastFetched: 0
-        });
-
-        // Resume position: send a seek a beat after the player has loaded.
-        if (opts.startTime && opts.startTime > 5) {
-          setTimeout(() => {
-            try { device.seekTo(opts.startTime!, () => { /* noop */ }); }
-            catch { /* ignore */ }
-          }, 1800);
-        }
-        resolve();
-      }
-    );
+          state: 'loading',
+          position: opts.startTime ?? 0
+        }),
+        lastFetched: 0
+      });
+      resolve();
+    });
   });
 }
 

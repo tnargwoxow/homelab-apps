@@ -25,9 +25,20 @@ interface DeviceListResponse {
   devices: CastDevice[];
 }
 
+async function explainError(r: Response): Promise<string> {
+  try {
+    const data = await r.clone().json();
+    if (typeof data?.error === 'string') return data.error;
+  } catch { /* not JSON */ }
+  try { return (await r.text()).trim(); } catch { return ''; }
+}
+
 async function get<T>(url: string): Promise<T> {
   const r = await fetch(url, { headers: { Accept: 'application/json' } });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}: ${url}`);
+  if (!r.ok) {
+    const detail = await explainError(r);
+    throw new Error(detail ? `${r.status}: ${detail}` : `${r.status} ${r.statusText}`);
+  }
   return r.json() as Promise<T>;
 }
 
@@ -37,7 +48,10 @@ async function post<T>(url: string, body?: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
     body: body !== undefined ? JSON.stringify(body) : undefined
   });
-  if (!r.ok) throw new Error(`${r.status} ${r.statusText}: ${url}`);
+  if (!r.ok) {
+    const detail = await explainError(r);
+    throw new Error(detail ? `${r.status}: ${detail}` : `${r.status} ${r.statusText}`);
+  }
   return r.json() as Promise<T>;
 }
 

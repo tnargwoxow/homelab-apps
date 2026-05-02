@@ -138,6 +138,14 @@ html, body, #app {
   height: 100%;
 }
 
+/* Defense in depth: keep stray-wide content from causing the whole page
+   to scroll horizontally on phones. Individual components should still
+   wrap properly; this is just a backstop. */
+html, body {
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
 body {
   background:
     radial-gradient(60rem 30rem at 0% -10%,  var(--theme-grad-1) 0%, transparent 60%),

@@ -4,7 +4,6 @@
   interface Props {
     videoId: number;
     position?: number;
-    /** Called after a successful cast, e.g. to pause the local <video>. */
     onCasted?: () => void;
   }
   let { videoId, position = 0, onCasted }: Props = $props();
@@ -22,7 +21,7 @@
       refreshCastSoon();
       onCasted?.();
     } catch (e) {
-      error = (e as Error).message;
+      error = (e as Error).message ?? String(e);
     } finally {
       busy = false;
     }
@@ -53,8 +52,14 @@
   </button>
 
   {#if open}
+    <!--
+      Mobile: anchor to the LEFT of the button so the popover unfurls right
+      and stays on-screen. Width-clamped so it never exceeds the viewport.
+      Desktop (sm+): anchor to the RIGHT in a fixed 18rem column, the way
+      a normal dropdown looks.
+    -->
     <div
-      class="absolute right-0 z-30 mt-1 w-72 overflow-hidden rounded-2xl shadow-xl ring-1"
+      class="absolute left-0 top-full z-30 mt-1 w-[min(20rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl shadow-xl ring-1 sm:left-auto sm:right-0 sm:w-72"
       style="background: var(--theme-pill-bg);
              --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);"
     >
@@ -77,7 +82,7 @@
             <li>
               <button
                 type="button"
-                class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition"
+                class="flex w-full items-center justify-between px-3 py-2 text-left text-sm transition disabled:opacity-60"
                 style="color: var(--theme-text);"
                 disabled={busy}
                 onmouseover={(e) => ((e.currentTarget as HTMLButtonElement).style.background = 'var(--theme-pill-hover)')}
@@ -96,8 +101,14 @@
         </ul>
       {/if}
 
+      {#if busy}
+        <div class="px-3 py-2 text-xs" style="color: var(--theme-text-muted); border-top: 1px solid var(--theme-card-ring);">
+          Sending to TV…
+        </div>
+      {/if}
+
       {#if error}
-        <div class="px-3 py-2 text-xs" style="color: #f43f5e; border-top: 1px solid var(--theme-card-ring);">
+        <div class="px-3 py-2 text-xs" style="color: #f43f5e; border-top: 1px solid var(--theme-card-ring); overflow-wrap: anywhere;">
           {error}
         </div>
       {/if}
