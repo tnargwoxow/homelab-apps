@@ -11,8 +11,15 @@
 # One-command run:
 #   bash <(curl -fsSL https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
 #
+# For PRIVATE repos, pass a GitHub token (Contents: read scope is enough):
+#   TOKEN=ghp_yourFineGrainedToken
+#   GITHUB_TOKEN="$TOKEN" VIDEOS_HOST_PATH=/mnt/data/dance \
+#   bash <(curl -fsSL -H "Authorization: token $TOKEN" \
+#     https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
+#
 # Configurable via env vars (all optional):
 #   VIDEOS_HOST_PATH   Host path to your video library (will be prompted if missing)
+#   GITHUB_TOKEN       GitHub token for cloning a private repo
 #   VMID               Container ID (default: next free starting at 200)
 #   HOSTNAME           Container hostname (default: mimis-dance-wonderland)
 #   STORAGE            Container disk storage (default: auto-detected)
@@ -167,6 +174,7 @@ say "installing Docker + cloning repo + starting app inside the LXC..."
 pct exec "$VMID" -- env \
   GIT_URL="$GIT_URL" \
   GIT_BRANCH="$GIT_BRANCH" \
+  GITHUB_TOKEN="${GITHUB_TOKEN:-}" \
   APP_PORT="$APP_PORT" \
   DEBIAN_FRONTEND=noninteractive \
   bash -s <<'INSIDE'
@@ -191,6 +199,16 @@ systemctl enable --now docker >/dev/null
 
 log "cloning ${GIT_URL} (${GIT_BRANCH})"
 mkdir -p /opt
+
+# If a token was supplied, persist it via the git credential store so
+# clone + future `git pull` work for a private repo. File is 0600 and
+# only readable by root inside the unprivileged LXC.
+if [ -n "${GITHUB_TOKEN:-}" ]; then
+  install -m 0600 /dev/null /root/.git-credentials
+  printf 'https://oauth2:%s@github.com\n' "$GITHUB_TOKEN" > /root/.git-credentials
+  git config --global credential.helper "store --file=/root/.git-credentials"
+fi
+
 if [ ! -d /opt/homelab-apps ]; then
   git clone --depth 1 --branch "$GIT_BRANCH" "$GIT_URL" /opt/homelab-apps
 else

@@ -25,33 +25,58 @@ Designed to run on a low-power Proxmox VM. Direct HTTP byte-range streaming, no 
 
 ## Deploying on a Proxmox host (one command)
 
-SSH to your Proxmox PVE node as root and run:
+The repo is private, so you'll need a GitHub Personal Access Token with read-only access to it.
+
+### Step 1 — Create a fine-grained PAT
+
+1. Open <https://github.com/settings/personal-access-tokens/new>.
+2. **Token name:** `Mimi Dance Proxmox` (or whatever).
+3. **Resource owner:** the account that owns this repo (`tnargwoxow`).
+4. **Repository access:** *Only select repositories* → pick `homelab-apps`.
+5. **Permissions → Repository permissions:** set **Contents** to **Read-only**. Leave everything else as "No access".
+6. **Expiration:** whatever you're comfortable rotating (90 days is a sensible default).
+7. **Generate token** and copy it (`github_pat_…`). You won't be able to see it again.
+
+### Step 2 — Run the installer
+
+SSH to your PVE node as root, paste your token into a shell variable, and run:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
+TOKEN=github_pat_paste_here
+
+GITHUB_TOKEN="$TOKEN" VIDEOS_HOST_PATH=/mnt/data/dance \
+bash <(curl -fsSL -H "Authorization: token $TOKEN" \
+  https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
 ```
 
-You'll be prompted for the host path to your dance video library. The script:
+Replace `/mnt/data/dance` with the absolute path to your dance video library on the PVE host. (It's prompted for if you omit `VIDEOS_HOST_PATH`.)
+
+What happens:
 
 - Picks the next free VMID (starting at 200) and downloads the Ubuntu 24.04 LXC template if needed.
 - Creates an unprivileged LXC with `nesting=1,keyctl=1` so Docker works inside.
 - Bind-mounts your video path into the container at `/videos` (read-only).
-- Boots the container, installs Docker CE + the compose plugin, clones this repo, and runs `docker compose up -d --build`.
-- Prints the URL when the container reports healthy.
+- Boots the container, installs Docker CE + the compose plugin.
+- Stores the token in `/root/.git-credentials` (chmod 600) inside the LXC and clones the repo.
+- Runs `docker compose up -d --build` and prints the URL when healthcheck passes.
 
-You can override defaults via env vars before the `bash <(...)`:
+### Optional overrides
 
 ```bash
+GITHUB_TOKEN="$TOKEN" \
 VIDEOS_HOST_PATH=/mnt/data/dance \
-VMID=215 HOSTNAME=mimi STORAGE=local-zfs DISK_SIZE=8 MEMORY=1024 CORES=2 \
-bash <(curl -fsSL https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
+VMID=215 HOSTNAME=mimi STORAGE=local-zfs DISK_SIZE=10 MEMORY=1536 CORES=2 \
+bash <(curl -fsSL -H "Authorization: token $TOKEN" \
+  https://raw.githubusercontent.com/tnargwoxow/homelab-apps/claude/dance-class-streaming-app-urVJK/apps/dance-classes/scripts/install-proxmox.sh)
 ```
 
-After install, manage the container from the PVE host:
+### Managing it after install
+
+From the PVE host:
 
 ```bash
-pct enter <vmid>                         # shell in
-pct stop <vmid>; pct start <vmid>        # stop/start
+pct enter <vmid>                         # shell into the container
+pct stop <vmid>; pct start <vmid>        # stop/start the container
 ```
 
 Inside the container:
@@ -60,6 +85,15 @@ Inside the container:
 cd /opt/homelab-apps/apps/dance-classes
 docker compose logs -f                   # tail logs
 docker compose pull && docker compose up -d --build   # update to latest branch
+```
+
+### When your token expires
+
+Rotate the token in GitHub, SSH into the LXC (`pct enter <vmid>`), and update `/root/.git-credentials`:
+
+```bash
+echo "https://oauth2:NEW_TOKEN@github.com" > /root/.git-credentials
+chmod 600 /root/.git-credentials
 ```
 
 ## Configuration
