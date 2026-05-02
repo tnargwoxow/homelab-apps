@@ -12,6 +12,7 @@
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
   import { celebrate } from '../lib/celebrate';
+  import HandoffSheet from '../components/HandoffSheet.svelte';
 
   interface Props { params?: { id?: string }; }
   let { params }: Props = $props();
@@ -23,6 +24,7 @@
   let videoEl: HTMLVideoElement | null = $state(null);
   let playbackRate = $state(1);
   let showSpeedMenu = $state(false);
+  let showHandoff = $state(false);
   let showResumeBanner = $state(false);
   let resumePosition = $state(0);
   let countdown = $state<number | null>(null);
@@ -129,12 +131,34 @@
       .finally(() => { loading = false; });
   });
 
+  function readHandoffParams(): { t: number | null; speed: number | null } {
+    if (typeof window === 'undefined') return { t: null, speed: null };
+    const hash = window.location.hash; // e.g. "#/watch/12?t=90&speed=0.75"
+    const qIdx = hash.indexOf('?');
+    if (qIdx < 0) return { t: null, speed: null };
+    const qs = new URLSearchParams(hash.slice(qIdx + 1));
+    const tRaw = qs.get('t');
+    const sRaw = qs.get('speed');
+    const tNum = tRaw !== null ? Number(tRaw) : NaN;
+    const sNum = sRaw !== null ? Number(sRaw) : NaN;
+    return {
+      t:     Number.isFinite(tNum) && tNum >= 0 ? tNum : null,
+      speed: Number.isFinite(sNum) && sNum >= 0.25 && sNum <= 2 ? sNum : null
+    };
+  }
+
   function onLoadedMeta() {
     if (!videoEl || !meta) return;
-    if (!meta.progress.watched && meta.progress.position > 5) {
+    const handoff = readHandoffParams();
+    if (handoff.t !== null) {
+      videoEl.currentTime = handoff.t;
+      // Suppress the resume banner — the URL already specified where to start.
+      showResumeBanner = false;
+    } else if (!meta.progress.watched && meta.progress.position > 5) {
       videoEl.currentTime = meta.progress.position;
     }
-    videoEl.playbackRate = playbackRate;
+    if (handoff.speed !== null) setSpeed(handoff.speed);
+    else videoEl.playbackRate = playbackRate;
     applyPreservesPitch();
     // Only autoplay locally when there isn't an active cast — otherwise
     // we'd play on the phone AND on the TV at the same time.
@@ -597,6 +621,11 @@
           onCasted={() => { try { videoEl?.pause(); } catch { /* ignore */ } }}
         />
 
+        <button class={pillBase} style={pillIdleStyle}
+                onmouseover={pillHoverIn} onmouseout={pillHoverOut}
+                onclick={() => (showHandoff = true)}
+                aria-label="Hand off to another device">📱</button>
+
         <div class="relative">
           <button class={pillBase} style={pillIdleStyle}
                   onmouseover={pillHoverIn} onmouseout={pillHoverOut}
@@ -746,4 +775,14 @@
       </ul>
     </aside>
   </div>
+{/if}
+
+{#if meta}
+  <HandoffSheet
+    open={showHandoff}
+    videoId={meta.id}
+    position={videoEl?.currentTime ?? 0}
+    speed={playbackRate}
+    onClose={() => (showHandoff = false)}
+  />
 {/if}
