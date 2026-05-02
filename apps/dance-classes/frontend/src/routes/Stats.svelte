@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { link } from 'svelte-spa-router';
+  import { link, push } from 'svelte-spa-router';
   import { api } from '../lib/api';
   import type { StatsPayload } from '../lib/api';
   import { theme } from '../lib/stores';
@@ -48,27 +48,51 @@
 
   // Achievements — each has a threshold and a "stat" key from data.
   // Showing locked + progress bar gives the user something to chase.
+  // `kind` controls which list to open when the tile is tapped.
   interface Achievement {
     icon: string;
     label: string;
     target: number;
     actual: number;
     suffix?: string;
+    kind: 'classes-started' | 'classes-completed' | 'time' | 'streak' | 'favorites';
   }
   let achievements = $derived<Achievement[]>(data ? [
-    { icon: '🌱', label: 'First class',         target: 1,   actual: data.total.classesStarted },
-    { icon: '💃', label: '5 classes completed', target: 5,   actual: data.total.classesCompleted },
-    { icon: '🎯', label: '25 classes',          target: 25,  actual: data.total.classesCompleted },
-    { icon: '🏆', label: '100 classes',         target: 100, actual: data.total.classesCompleted },
-    { icon: '⏱️', label: '1 hour total',        target: 3600,    actual: data.total.seconds, suffix: 'time' },
-    { icon: '⏱️⏱️', label: '10 hours total',    target: 36000,   actual: data.total.seconds, suffix: 'time' },
-    { icon: '⏱️🏅', label: '100 hours total',    target: 360000,  actual: data.total.seconds, suffix: 'time' },
-    { icon: '🔥',  label: '3-day streak',       target: 3,   actual: data.streak.longest },
-    { icon: '🔥🔥', label: '7-day streak',       target: 7,   actual: data.streak.longest },
-    { icon: '🔥🔥🔥', label: '30-day streak',    target: 30,  actual: data.streak.longest },
-    { icon: '⭐',  label: 'First favorite',     target: 1,   actual: data.total.favorites },
-    { icon: '⭐⭐', label: '10 favorites',       target: 10,  actual: data.total.favorites }
+    { icon: '🌱', label: 'First class',         target: 1,       actual: data.total.classesStarted,   kind: 'classes-started' },
+    { icon: '💃', label: '5 classes completed', target: 5,       actual: data.total.classesCompleted, kind: 'classes-completed' },
+    { icon: '🎯', label: '25 classes',          target: 25,      actual: data.total.classesCompleted, kind: 'classes-completed' },
+    { icon: '🏆', label: '100 classes',         target: 100,     actual: data.total.classesCompleted, kind: 'classes-completed' },
+    { icon: '⏱️', label: '1 hour total',        target: 3600,    actual: data.total.seconds, suffix: 'time', kind: 'time' },
+    { icon: '⏱️⏱️', label: '10 hours total',    target: 36000,   actual: data.total.seconds, suffix: 'time', kind: 'time' },
+    { icon: '⏱️🏅', label: '100 hours total',    target: 360000,  actual: data.total.seconds, suffix: 'time', kind: 'time' },
+    { icon: '🔥',  label: '3-week streak',      target: 3,       actual: data.streak.longest,         kind: 'streak' },
+    { icon: '🔥🔥', label: '7-week streak',      target: 7,       actual: data.streak.longest,         kind: 'streak' },
+    { icon: '🔥🔥🔥', label: '30-week streak',   target: 30,      actual: data.streak.longest,         kind: 'streak' },
+    { icon: '⭐',  label: 'First favorite',     target: 1,       actual: data.total.favorites,        kind: 'favorites' },
+    { icon: '⭐⭐', label: '10 favorites',       target: 10,      actual: data.total.favorites,        kind: 'favorites' }
   ] : []);
+
+  function openAchievement(a: Achievement) {
+    if (a.kind === 'favorites') {
+      push('/favorites');
+      return;
+    }
+    const titles: Record<typeof a.kind, string> = {
+      'classes-started':   'Every class you\'ve started',
+      'classes-completed': 'Every class you\'ve started',
+      'time':              'Every class you\'ve watched',
+      'streak':            'Every class you\'ve watched',
+      'favorites':         ''
+    };
+    const subtitles: Record<typeof a.kind, string> = {
+      'classes-started':   `${a.label} — ${a.actual} of ${a.target}`,
+      'classes-completed': `${a.label} — ${a.actual} of ${a.target} (look for ✓ watched)`,
+      'time':              `${a.label} — ${fmtMinutes(a.actual)} of ${fmtMinutes(a.target)}`,
+      'streak':            `${a.label} — best ${a.actual} weeks`,
+      'favorites':         ''
+    };
+    openList(titles[a.kind], subtitles[a.kind], 'all');
+  }
 
   // Heatmap intensity: 0..1 based on max minutes per day (excluding zero days).
   let dailyMax = $derived(data ? Math.max(1, ...data.daily30.map(d => d.seconds)) : 1);
@@ -276,10 +300,15 @@
       {#each achievements as a}
         {@const unlocked = a.actual >= a.target}
         {@const ratio = Math.min(1, a.actual / a.target)}
-        <div class="rounded-xl p-3 ring-1 transition"
-             style="background: {unlocked ? 'var(--theme-pill-hover)' : 'transparent'};
-                    --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);
-                    opacity: {unlocked ? 1 : 0.7};">
+        <button
+          type="button"
+          class="rounded-xl p-3 text-left ring-1 transition active:scale-[0.98]"
+          style="background: {unlocked ? 'var(--theme-pill-hover)' : 'transparent'};
+                 --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);
+                 opacity: {unlocked ? 1 : 0.7};"
+          aria-label="See classes for: {a.label}"
+          onclick={() => openAchievement(a)}
+        >
           <div class="flex items-baseline gap-2">
             <span class="text-2xl" style="filter: {unlocked ? 'none' : 'grayscale(0.7)'};">{a.icon}</span>
             <div class="min-w-0 flex-1">
@@ -292,11 +321,11 @@
                   {a.suffix === 'time' ? `${fmtMinutes(a.actual)} / ${fmtMinutes(a.target)}` : `${a.actual} / ${a.target}`}
                 </div>
               {:else}
-                <div class="mt-0.5 text-[10px]" style="color: var(--theme-accent);">Unlocked!</div>
+                <div class="mt-0.5 text-[10px]" style="color: var(--theme-accent);">Unlocked! ›</div>
               {/if}
             </div>
           </div>
-        </div>
+        </button>
       {/each}
     </div>
   </section>
