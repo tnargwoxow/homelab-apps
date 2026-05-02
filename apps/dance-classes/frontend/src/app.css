@@ -219,6 +219,23 @@ video::-webkit-media-controls-panel {
 }
 .mimi-twinkle { animation: mimi-twinkle 2.4s ease-in-out infinite; }
 
+/* Streak flame — flickering when alive, slow ember when at risk. */
+@keyframes streak-flicker {
+  0%, 100% { transform: scale(1)    rotate(-1deg); filter: drop-shadow(0 0 4px rgba(251,146,60,0.6)); opacity: 1; }
+  50%      { transform: scale(1.05) rotate( 1deg); filter: drop-shadow(0 0 8px rgba(251,146,60,0.8)); opacity: 0.92; }
+}
+.streak-flame-flicker { animation: streak-flicker 1.6s ease-in-out infinite; transform-origin: 50% 90%; transform-box: fill-box; }
+
+@keyframes streak-ember {
+  0%, 100% { transform: scale(0.95); filter: hue-rotate(-15deg) drop-shadow(0 0 2px rgba(220,38,38,0.4)); opacity: 0.7; }
+  50%      { transform: scale(1);    filter: hue-rotate(-25deg) drop-shadow(0 0 5px rgba(220,38,38,0.6)); opacity: 0.85; }
+}
+.streak-flame-ember { animation: streak-ember 2.6s ease-in-out infinite; transform-origin: 50% 90%; transform-box: fill-box; }
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-flame-flicker, .streak-flame-ember { animation: none !important; }
+}
+
 /* ============================================================
    Theme-specific decorative tweaks
    ============================================================ */

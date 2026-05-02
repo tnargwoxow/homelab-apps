@@ -7,6 +7,8 @@
   import FolderCard from '../components/FolderCard.svelte';
   import Sparkle from '../components/Sparkle.svelte';
   import Mascot from '../components/Mascot.svelte';
+  import StreakFlame from '../components/StreakFlame.svelte';
+  import { streakState } from '../lib/stores';
 
   let root = $state<FolderPayload | null>(null);
   let continueItems = $state<RecentItem[]>([]);
@@ -52,7 +54,11 @@
     <div class="flex-1">
       <h1 class="font-display text-3xl sm:text-4xl" style="color: var(--theme-text-strong);">
         {$theme.welcomeTitle}
-        <Sparkle class="-mt-1 inline-block h-6 w-6" />
+        {#if $streakState.current > 0}
+          <StreakFlame days={$streakState.current} size="md" atRisk={$streakState.atRisk} />
+        {:else}
+          <Sparkle class="-mt-1 inline-block h-6 w-6" />
+        {/if}
       </h1>
       <p class="mt-1 text-sm" style="color: var(--theme-text-muted);">{$theme.welcomeBlurb}</p>
     </div>

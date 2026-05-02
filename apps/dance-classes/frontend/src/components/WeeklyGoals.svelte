@@ -3,6 +3,7 @@
   import { api } from '../lib/api';
   import type { StatsPayload } from '../lib/api';
   import StatsListModal from './StatsListModal.svelte';
+  import { streakState } from '../lib/stores';
 
   let data = $state<StatsPayload | null>(null);
   let modalOpen = $state(false);
@@ -11,7 +12,14 @@
   });
 
   async function refresh() {
-    try { data = await api.stats(); } catch { /* keep stale */ }
+    try {
+      data = await api.stats();
+      streakState.set({
+        current: data.streak.current,
+        longest: data.streak.longest,
+        atRisk:  data.streak.atRisk
+      });
+    } catch { /* keep stale */ }
   }
   onMount(() => {
     refresh();

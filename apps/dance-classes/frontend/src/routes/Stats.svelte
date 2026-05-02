@@ -6,6 +6,7 @@
   import { theme } from '../lib/stores';
   import Sparkle from '../components/Sparkle.svelte';
   import StatsListModal from '../components/StatsListModal.svelte';
+  import StreakFlame from '../components/StreakFlame.svelte';
 
   let modalOpen = $state(false);
   let modalCfg = $state<{ title: string; subtitle: string; range: string; date?: string }>({
@@ -145,7 +146,11 @@
           onclick={() => openList(card.title, card.subtitle, card.range)}
         >
           <div class="text-[11px] font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">{card.label}</div>
-          <div class="mt-1 font-display text-3xl leading-none" style="color: var(--theme-text-strong);">{card.value}</div>
+          {#if card.label === 'Streak' && d.streak.current > 0}
+            <div class="mt-1"><StreakFlame days={d.streak.current} size="lg" atRisk={d.streak.atRisk} /></div>
+          {:else}
+            <div class="mt-1 font-display text-3xl leading-none" style="color: var(--theme-text-strong);">{card.value}</div>
+          {/if}
           <div class="mt-1 text-xs" style="color: var(--theme-text-muted);">{card.sub}</div>
         </button>
       {:else}

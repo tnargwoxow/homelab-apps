@@ -11,6 +11,8 @@
   import Sparkle from './components/Sparkle.svelte';
   import Mascot from './components/Mascot.svelte';
   import ThemeSelector from './components/ThemeSelector.svelte';
+  import StreakFlame from './components/StreakFlame.svelte';
+  import { streakState } from './lib/stores';
   import CastNowPlaying from './components/CastNowPlaying.svelte';
   import PipNowPlaying from './components/PipNowPlaying.svelte';
   import WeeklyGoals from './components/WeeklyGoals.svelte';
@@ -76,6 +78,16 @@
       </nav>
       <div class="ml-auto flex min-w-0 shrink items-center gap-2 sm:max-w-md sm:flex-1">
         <div class="min-w-0 flex-1"><SearchBar /></div>
+        {#if $streakState.current > 0}
+          <div class="hidden md:flex items-center gap-1 rounded-full px-2 py-1 ring-1"
+               style="background: var(--theme-pill-bg);
+                      --tw-ring-color: var(--theme-pill-ring);
+                      border-color: var(--theme-pill-ring);
+                      color: var(--theme-pill-text);"
+               title={`${$streakState.current}-${$streakState.current === 1 ? 'week' : 'week'} streak${$streakState.atRisk ? ' (at risk)' : ''}`}>
+            <StreakFlame days={$streakState.current} size="sm" atRisk={$streakState.atRisk} />
+          </div>
+        {/if}
         <ThemeSelector />
       </div>
     </div>
