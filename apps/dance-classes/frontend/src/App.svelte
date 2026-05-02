@@ -12,6 +12,7 @@
   import Mascot from './components/Mascot.svelte';
   import ThemeSelector from './components/ThemeSelector.svelte';
   import StreakFlame from './components/StreakFlame.svelte';
+  import Celebration from './components/Celebration.svelte';
   import { streakState } from './lib/stores';
   import CastNowPlaying from './components/CastNowPlaying.svelte';
   import PipNowPlaying from './components/PipNowPlaying.svelte';
@@ -130,6 +131,7 @@
   <BottomNav />
   <CastNowPlaying />
   <PipNowPlaying />
+  <Celebration />
 
   <StatsListModal
     open={errorsModalOpen}

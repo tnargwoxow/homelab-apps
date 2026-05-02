@@ -232,8 +232,35 @@ video::-webkit-media-controls-panel {
 }
 .streak-flame-ember { animation: streak-ember 2.6s ease-in-out infinite; transform-origin: 50% 90%; transform-box: fill-box; }
 
+/* Mascot idle micro-animations — applied to an inner element so they
+   compose with the outer .mimi-float / .mimi-bob wrappers in App.svelte
+   without clobbering each other's transforms. */
+@keyframes mimi-squirt-tilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.mimi-squirt-tilt { animation: mimi-squirt-tilt 5s ease-in-out infinite; transform-origin: 50% 70%; }
+
+@keyframes mimi-mew-spin { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+.mimi-mew-spin { animation: mimi-mew-spin 12s linear infinite alternate; transform-origin: 50% 50%; }
+
+@keyframes heels-shimmer {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 2px rgba(251,191,36,.4)); }
+  50%      { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(251,191,36,.7)); }
+}
+.heels-shimmer { animation: heels-shimmer 3s ease-in-out infinite; transform-origin: 50% 50%; transform-box: fill-box; }
+
+@keyframes hiphop-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.hiphop-spin { animation: hiphop-spin 8s linear infinite; transform-origin: 50% 50%; transform-box: fill-box; }
+
+/* Celebration sparks — particles fly out from spawn point and fade. */
+@keyframes celebrate-spark {
+  0%   { transform: translate(0, 0) scale(0.5); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; }
+}
+.celebrate-spark { animation: celebrate-spark 1.4s ease-out forwards; }
+
 @media (prefers-reduced-motion: reduce) {
-  .streak-flame-flicker, .streak-flame-ember { animation: none !important; }
+  .streak-flame-flicker, .streak-flame-ember,
+  .mimi-squirt-tilt, .mimi-mew-spin, .heels-shimmer, .hiphop-spin,
+  .celebrate-spark { animation: none !important; }
 }
 
 /* ============================================================

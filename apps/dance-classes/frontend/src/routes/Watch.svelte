@@ -11,6 +11,7 @@
   import { applyMediaSession, clearMediaSession } from '../lib/mediaSession';
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
+  import { celebrate } from '../lib/celebrate';
 
   interface Props { params?: { id?: string }; }
   let { params }: Props = $props();
@@ -207,6 +208,7 @@
     // automatically; the backend's progress endpoint won't.
     api.setWatched(meta.id, true).catch(() => {});
     if (meta) meta = { ...meta, progress: { ...meta.progress, watched: true } };
+    celebrate('small');
     if (meta?.nextId) startAutoplayCountdown(meta.nextId);
   }
 

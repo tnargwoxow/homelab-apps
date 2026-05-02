@@ -3,10 +3,12 @@
   let { class: cls = 'h-16 w-16' }: Props = $props();
 </script>
 
-<img
-  src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png"
-  alt="Squirtle"
-  loading="lazy"
-  class="select-none object-contain {cls}"
-  draggable="false"
-/>
+<span class="mimi-squirt-tilt inline-block">
+  <img
+    src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/other/official-artwork/7.png"
+    alt="Squirtle"
+    loading="lazy"
+    class="select-none object-contain {cls}"
+    draggable="false"
+  />
+</span>

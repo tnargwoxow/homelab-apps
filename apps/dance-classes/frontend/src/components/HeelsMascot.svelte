@@ -15,9 +15,11 @@
       <stop offset="100%" stop-color="#7f1d1d"/>
     </radialGradient>
   </defs>
-  <!-- flame backdrop -->
-  <path d="M60 16 Q44 30 48 50 Q40 56 44 70 Q36 80 50 92 Q60 100 70 92 Q84 80 76 70 Q80 56 72 50 Q76 30 60 16 Z"
-        fill="url(#hl-flame)" opacity="0.9"/>
+  <!-- flame backdrop (animated shimmer) -->
+  <g class="heels-shimmer">
+    <path d="M60 16 Q44 30 48 50 Q40 56 44 70 Q36 80 50 92 Q60 100 70 92 Q84 80 76 70 Q80 56 72 50 Q76 30 60 16 Z"
+          fill="url(#hl-flame)" opacity="0.9"/>
+  </g>
   <!-- stiletto -->
   <g transform="translate(20 70) rotate(-8)">
     <path d="M0 18 Q4 8 30 6 Q60 4 76 8 Q82 10 76 18 L72 22 Q56 26 36 24 Q14 22 0 18 Z"

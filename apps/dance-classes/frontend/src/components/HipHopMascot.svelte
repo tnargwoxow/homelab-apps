@@ -15,22 +15,24 @@
   <!-- inner ring -->
   <circle cx="60" cy="60" r="46" fill="none" stroke="#ffffff" stroke-width="1" opacity="0.25"/>
 
-  <!-- breakdancer silhouette in white (windmill freeze) -->
-  <g fill="#ffffff">
-    <!-- torso -->
-    <ellipse cx="60" cy="62" rx="22" ry="13" transform="rotate(-22 60 62)"/>
-    <!-- head with cap -->
-    <circle cx="40" cy="52" r="8"/>
-    <path d="M30 50 L52 46 L52 50 Q42 53 30 52 Z"/>
-    <rect x="48" y="48" width="8" height="3"/>
-    <!-- planted arm -->
-    <rect x="48" y="60" width="6" height="22" rx="2" transform="rotate(20 51 71)"/>
-    <circle cx="58" cy="84" r="5"/>
-    <!-- legs -->
-    <rect x="68" y="48" width="22" height="6" rx="2" transform="rotate(-30 79 51)"/>
-    <rect x="60" y="46" width="20" height="6" rx="2" transform="rotate(40 70 49)"/>
-    <!-- free arm -->
-    <rect x="38" y="56" width="20" height="5" rx="2" transform="rotate(-30 48 58)"/>
+  <!-- breakdancer silhouette in white (windmill freeze, slowly spinning) -->
+  <g class="hiphop-spin">
+    <g fill="#ffffff">
+      <!-- torso -->
+      <ellipse cx="60" cy="62" rx="22" ry="13" transform="rotate(-22 60 62)"/>
+      <!-- head with cap -->
+      <circle cx="40" cy="52" r="8"/>
+      <path d="M30 50 L52 46 L52 50 Q42 53 30 52 Z"/>
+      <rect x="48" y="48" width="8" height="3"/>
+      <!-- planted arm -->
+      <rect x="48" y="60" width="6" height="22" rx="2" transform="rotate(20 51 71)"/>
+      <circle cx="58" cy="84" r="5"/>
+      <!-- legs -->
+      <rect x="68" y="48" width="22" height="6" rx="2" transform="rotate(-30 79 51)"/>
+      <rect x="60" y="46" width="20" height="6" rx="2" transform="rotate(40 70 49)"/>
+      <!-- free arm -->
+      <rect x="38" y="56" width="20" height="5" rx="2" transform="rotate(-30 48 58)"/>
+    </g>
   </g>
 
   <!-- red accent stripes (Flying Steps signature) -->

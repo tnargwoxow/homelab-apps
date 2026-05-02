@@ -7,6 +7,9 @@
   import Sparkle from '../components/Sparkle.svelte';
   import StatsListModal from '../components/StatsListModal.svelte';
   import StreakFlame from '../components/StreakFlame.svelte';
+  import { celebrate } from '../lib/celebrate';
+
+  const STREAK_STORAGE_KEY = 'mimi:lastSeenStreak';
 
   let modalOpen = $state(false);
   let modalCfg = $state<{ title: string; subtitle: string; range: string; date?: string }>({
@@ -22,7 +25,12 @@
   let error = $state<string | null>(null);
 
   onMount(async () => {
-    try { data = await api.stats(); }
+    try {
+      data = await api.stats();
+      const prev = Number(window.localStorage.getItem(STREAK_STORAGE_KEY) ?? 0);
+      if (data.streak.current > prev) celebrate('big');
+      window.localStorage.setItem(STREAK_STORAGE_KEY, String(data.streak.current));
+    }
     catch (e) { error = (e as Error).message; }
     finally { loading = false; }
   });
