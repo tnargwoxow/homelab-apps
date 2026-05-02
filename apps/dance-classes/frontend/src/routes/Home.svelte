@@ -147,7 +147,8 @@
       </h2>
       <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
         {#each root.folders as f (f.id)}
-          <FolderCard id={f.id} name={f.name} childCount={f.childCount} thumbVideoIds={f.thumbVideoIds} />
+          <FolderCard id={f.id} name={f.name} childCount={f.childCount} thumbVideoIds={f.thumbVideoIds}
+                      videoCount={f.videoCount} watchedCount={f.watchedCount} inProgressCount={f.inProgressCount} />
         {/each}
       </div>
     </section>

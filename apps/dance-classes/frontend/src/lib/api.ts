@@ -1,6 +1,14 @@
 export interface BreadcrumbItem { id: number; name: string; }
 
-export interface FolderSummary { id: number; name: string; childCount: number; thumbVideoIds: number[]; }
+export interface FolderSummary {
+  id: number;
+  name: string;
+  childCount: number;
+  thumbVideoIds: number[];
+  videoCount: number;
+  watchedCount: number;
+  inProgressCount: number;
+}
 
 export interface VideoListItem {
   id: number;

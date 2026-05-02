@@ -28,6 +28,9 @@ interface ChildFolderRow {
   display_name: string;
   rel_path: string;
   child_count: number;
+  video_count: number;
+  watched_count: number;
+  in_progress_count: number;
 }
 
 const SAMPLE_THUMB_LIMIT = 4;
@@ -74,14 +77,33 @@ function getFolderPayload(db: DB, folderId: number) {
   ).get(folderId);
   if (!folder) return null;
 
-  const children = db.prepare<[number], ChildFolderRow>(`
-    SELECT f.id, f.display_name, f.rel_path,
-      (SELECT COUNT(*) FROM videos v WHERE v.folder_id = f.id) +
-      (SELECT COUNT(*) FROM folders f2 WHERE f2.parent_id = f.id) AS child_count
+  // Recursive aggregate of all descendant videos per direct-child folder.
+  // child_count keeps its old meaning (immediate folders+videos) for the
+  // existing badge; video_count/watched_count/in_progress_count include
+  // every descendant so the progress bar reflects the whole subtree.
+  const children = db.prepare<[number, number], ChildFolderRow>(`
+    WITH RECURSIVE descendants(root_id, id) AS (
+      SELECT id, id FROM folders WHERE parent_id = ?
+      UNION ALL
+      SELECT d.root_id, f.id FROM folders f JOIN descendants d ON f.parent_id = d.id
+    )
+    SELECT
+      f.id,
+      f.display_name,
+      f.rel_path,
+      (SELECT COUNT(*) FROM videos v2 WHERE v2.folder_id = f.id) +
+      (SELECT COUNT(*) FROM folders f2 WHERE f2.parent_id = f.id) AS child_count,
+      COUNT(v.id) AS video_count,
+      COALESCE(SUM(CASE WHEN p.watched = 1 THEN 1 ELSE 0 END), 0) AS watched_count,
+      COALESCE(SUM(CASE WHEN COALESCE(p.watched, 0) = 0 AND COALESCE(p.position_seconds, 0) > 30 THEN 1 ELSE 0 END), 0) AS in_progress_count
     FROM folders f
+    LEFT JOIN descendants d ON d.root_id = f.id
+    LEFT JOIN videos v ON v.folder_id = d.id
+    LEFT JOIN progress p ON p.video_id = v.id
     WHERE f.parent_id = ?
+    GROUP BY f.id
     ORDER BY f.sort_key ASC
-  `).all(folderId);
+  `).all(folderId, folderId);
 
   const videos = db.prepare<[number], VideoListRow>(`
     SELECT
@@ -114,6 +136,9 @@ function getFolderPayload(db: DB, folderId: number) {
       id: c.id,
       name: c.display_name,
       childCount: c.child_count,
+      videoCount: c.video_count,
+      watchedCount: c.watched_count,
+      inProgressCount: c.in_progress_count,
       thumbVideoIds: sampleFolderThumbIds(db, c.id)
     })),
     videos: videos.map(v => ({

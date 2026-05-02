@@ -1,14 +1,23 @@
 <script lang="ts">
   import { link } from 'svelte-spa-router';
   import { api } from '../lib/api';
+  import ProgressBar from './ProgressBar.svelte';
 
   interface Props {
     id: number;
     name: string;
     childCount: number;
     thumbVideoIds?: number[];
+    videoCount?: number;
+    watchedCount?: number;
+    inProgressCount?: number;
   }
-  let { id, name, childCount, thumbVideoIds = [] }: Props = $props();
+  let {
+    id, name, childCount, thumbVideoIds = [],
+    videoCount = 0, watchedCount = 0, inProgressCount = 0
+  }: Props = $props();
+
+  const ratio = $derived(videoCount > 0 ? watchedCount / videoCount : 0);
 </script>
 
 <a use:link href={`/folder/${id}`} class="group block">
@@ -56,6 +65,15 @@
     {/if}
 
     <div class="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/15 via-transparent to-transparent"></div>
+
+    {#if videoCount > 0}
+      <div class="absolute right-1.5 top-1.5 rounded-full px-2 py-0.5 text-[10px] font-semibold shadow-sm tabular-nums"
+           style="background: var(--theme-pill-bg); color: var(--theme-text-strong);"
+           title={`${watchedCount} of ${videoCount} watched${inProgressCount ? `, ${inProgressCount} in progress` : ''}`}>
+        {watchedCount}/{videoCount}
+      </div>
+      <ProgressBar {ratio} />
+    {/if}
 
     <div class="absolute bottom-1.5 right-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold shadow-sm"
          style="background: var(--theme-pill-bg); color: var(--theme-text-strong);">
