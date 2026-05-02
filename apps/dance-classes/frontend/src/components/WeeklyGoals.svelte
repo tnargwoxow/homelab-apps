@@ -91,7 +91,9 @@
         type="button"
         class="rounded-xl p-2.5 text-left ring-1 transition"
         style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring);"
-        onclick={() => open('Videos this week', 'Watch 2 to keep your streak', 'this-week')}
+        onclick={() => open('Videos this week', data && data.weekGoals.videos.target === 1
+          ? 'Any class keeps your streak'
+          : `Watch ${data?.weekGoals.videos.target ?? 1} to keep your streak`, 'this-week')}
       >
         <div class="flex items-baseline justify-between gap-2">
           <span class="text-xs font-semibold uppercase tracking-wider" style="color: var(--theme-text-muted);">📺 Videos this week</span>

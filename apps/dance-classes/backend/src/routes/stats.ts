@@ -37,7 +37,8 @@ interface DistinctDayRow { day: string }
 const MIN_SECONDS_FOR_PRACTICE = 30;
 
 // Weekly streak rule: ≥ this many distinct videos watched in a Mon→Sun week.
-const WEEKLY_VIDEOS_TARGET = 2;
+// User asked for "any class is enough" — one is enough.
+const WEEKLY_VIDEOS_TARGET = 1;
 // Secondary weekly goal (motivational, doesn't affect streak).
 const WEEKLY_MINUTES_TARGET = 60;
 
