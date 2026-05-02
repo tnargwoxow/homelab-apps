@@ -149,7 +149,10 @@ pct create "$VMID" "$TEMPLATE_REF" \
 
 # Bind-mount the videos path read-only at /videos inside the LXC.
 # mp0 needs a path on the host filesystem (not on a Proxmox storage).
-pct set "$VMID" -mp0 "${VIDEOS_HOST_PATH},mp=/videos,ro=1,backup=0"
+# shift=1 enables idmapped-mount UID remapping so files owned by host
+# users (e.g. root) appear with correct UIDs inside the unprivileged LXC,
+# instead of being seen as nobody:nogroup. Requires PVE 7.x+ kernel.
+pct set "$VMID" -mp0 "${VIDEOS_HOST_PATH},mp=/videos,ro=1,backup=0,shift=1"
 ok "container created"
 
 say "starting container..."
