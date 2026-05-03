@@ -58,6 +58,15 @@
   let recElapsedSec = $state(0);
   let storageError = $state<string | null>(null);
   let showClips = $state(true);
+  // Step-by-step diagnostic log of the last Record attempt. Surfaced in the
+  // tile so debugging doesn't require remote devtools — every codec attempt,
+  // every thrown error, every state change appends a line here.
+  let recordLog = $state<string[]>([]);
+  function recLog(msg: string): void {
+    recordLog = [...recordLog, `${new Date().toLocaleTimeString()}  ${msg}`];
+    // eslint-disable-next-line no-console
+    console.log('[self-review]', msg);
+  }
 
   // refs to non-reactive plumbing
   let liveVideoEl: HTMLVideoElement | null = $state(null);
@@ -203,63 +212,89 @@
   // record silently broken (button looked enabled, click did nothing).
   function buildRecorder(s: MediaStream): { recorder: MediaRecorder; mime: string } | null {
     for (const m of CODEC_CANDIDATES) {
+      const supported = (() => { try { return MediaRecorder.isTypeSupported(m); } catch { return false; } })();
+      recLog(`try codec ${m} (isTypeSupported=${supported})`);
       try {
         const r = new MediaRecorder(s, { mimeType: m });
+        recLog(`  ✓ accepted, mime=${r.mimeType}`);
         return { recorder: r, mime: m };
       } catch (err) {
-        // Try the next codec.
-        // eslint-disable-next-line no-console
-        console.warn('[self-review] codec rejected', m, err);
+        recLog(`  ✗ rejected: ${(err as Error).name ?? 'Error'} ${(err as Error).message ?? ''}`);
       }
     }
-    // Last resort: let the browser pick whatever it wants.
+    recLog('try default codec (no mimeType)');
     try {
       const r = new MediaRecorder(s);
+      recLog(`  ✓ accepted, mime=${r.mimeType || '(empty)'}`);
       return { recorder: r, mime: r.mimeType || 'video/webm' };
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.warn('[self-review] fallback recorder failed', err);
+      recLog(`  ✗ rejected: ${(err as Error).name ?? 'Error'} ${(err as Error).message ?? ''}`);
     }
     return null;
   }
 
   async function startRecording() {
+    // Reset the on-screen diagnostic log on every fresh attempt so the user
+    // sees only the current click's trace, not stale lines from before.
+    recordLog = [];
+    recLog(`click: videoId=${videoId ?? 'undefined'} stream=${stream ? 'yes' : 'no'} mode=${mode}`);
+    recLog(`UA: ${typeof navigator !== 'undefined' ? navigator.userAgent : 'n/a'}`);
+
     if (!stream || videoId === undefined) {
       recordingError = videoId === undefined
         ? 'Pick a video first.'
         : 'Camera not ready yet.';
+      recLog(`abort: ${recordingError}`);
       return;
     }
-    if (recorder) return;
+    if (recorder) {
+      recLog('abort: recorder already exists (clearing it).');
+      // Defensive: if a previous attempt left a stuck recorder, scrap it so
+      // a second tap can recover instead of silently no-op'ing.
+      try { recorder.stop(); } catch { /* ignore */ }
+      recorder = null;
+      chosenMime = null;
+    }
     recordingError = null;
     storageError = null;
     chunks = [];
 
+    if (typeof MediaRecorder === 'undefined') {
+      recordingError = 'MediaRecorder is missing on this browser.';
+      recLog(recordingError);
+      return;
+    }
+
     const built = buildRecorder(stream);
     if (!built) {
-      recordingError = 'Recording not supported on this browser; mirror still works.';
+      recordingError = 'No codec accepted; recording not supported here.';
+      recLog(recordingError);
       return;
     }
     recorder = built.recorder;
     chosenMime = built.mime;
 
     recorder.ondataavailable = (ev) => {
-      if (ev.data && ev.data.size > 0) chunks.push(ev.data);
+      if (ev.data && ev.data.size > 0) {
+        chunks.push(ev.data);
+        recLog(`chunk +${ev.data.size}B (total chunks=${chunks.length})`);
+      }
     };
-    recorder.onstop = () => { void finalizeRecording(); };
+    recorder.onstop = () => { recLog('recorder.onstop'); void finalizeRecording(); };
     recorder.onerror = (ev) => {
-      // eslint-disable-next-line no-console
-      console.error('[self-review] recorder error', ev);
-      recordingError = `Recorder error: ${(ev as unknown as { error?: { message?: string } })?.error?.message ?? 'unknown'}`;
+      const msg = (ev as unknown as { error?: { message?: string } })?.error?.message ?? 'unknown';
+      recordingError = `Recorder error: ${msg}`;
+      recLog(`onerror: ${msg}`);
       abortRecorder();
     };
 
     try {
       recorder.start(1000);
+      recLog(`recorder.start(1000) ok, state=${recorder.state}`);
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error('[self-review] recorder.start() threw', err);
-      recordingError = `Could not start recording: ${(err as Error).message ?? 'unknown'}`;
+      const e = err as Error;
+      recordingError = `Could not start recording: ${e.message ?? 'unknown'}`;
+      recLog(`start threw: ${e.name ?? 'Error'} ${e.message ?? ''}`);
       try { recorder.stop(); } catch { /* ignore */ }
       recorder = null;
       chosenMime = null;
@@ -273,6 +308,7 @@
       if (recElapsedSec >= MAX_CLIP_SECONDS) stopRecording();
     }, 250);
     mode = 'record';
+    recLog('mode=record');
   }
 
   function stopRecording() {
@@ -559,6 +595,23 @@
         <div class="rounded-lg px-2 py-1 text-xs" style="background:#fef2f2; color:#991b1b;">
           {storageError}
         </div>
+      {/if}
+
+      {#if recordLog.length > 0}
+        <details class="rounded-lg ring-1 text-[10px]"
+                 style="background: var(--theme-pill-bg); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);">
+          <summary class="cursor-pointer px-2 py-1 font-semibold" style="color: var(--theme-text);">
+            Record diagnostic ({recordLog.length} lines)
+          </summary>
+          <pre class="max-h-40 overflow-auto whitespace-pre-wrap break-words px-2 pb-2 leading-snug"
+               style="color: var(--theme-text); font-family: ui-monospace, SFMono-Regular, monospace;">{recordLog.join('\n')}</pre>
+          <div class="flex justify-end px-2 pb-2">
+            <button type="button"
+                    class="rounded-full px-2 py-0.5 text-[10px] ring-1"
+                    style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+                    onclick={() => (recordLog = [])}>Clear</button>
+          </div>
+        </details>
       {/if}
 
       <!-- snap-to-corner shortcuts (drag the header for free placement) + opacity -->
