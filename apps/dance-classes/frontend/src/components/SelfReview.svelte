@@ -429,7 +429,19 @@
     };
   }
 
-  let recordDisabled = $derived(mode === 'off' || !stream || videoId === undefined || !recordSupported);
+  // Record stays clickable as long as the camera is up and we have a video
+  // to attach the clip to. Codec compatibility is checked when the user
+  // actually presses Record (buildRecorder() walks every candidate and
+  // falls through to the browser default), so a "no supported mime"
+  // result becomes a visible toast instead of a silently-greyed button.
+  let recordDisabled = $derived(mode === 'off' || !stream || videoId === undefined);
+  let recordHint = $derived.by(() => {
+    if (videoId === undefined) return 'Pick a video to record.';
+    if (mode === 'off')        return 'Camera is off.';
+    if (!stream)               return 'Waiting for camera…';
+    if (!recordSupported)      return 'No supported codec advertised — clicking will try anyway.';
+    return 'Record up to 5 minutes';
+  });
 </script>
 
 {#if visible}
@@ -514,7 +526,7 @@
               ? 'background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);'
               : 'background:#ef4444; color:#fff; --tw-ring-color:#ef4444; border-color:#ef4444;'}
             disabled={recordDisabled}
-            title={recordSupported ? 'Record up to 5 minutes' : 'Not supported on this browser'}
+            title={recordHint}
             onclick={startRecording}
           >● Record</button>
         {/if}
