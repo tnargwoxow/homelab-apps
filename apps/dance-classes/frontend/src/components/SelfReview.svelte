@@ -71,7 +71,12 @@
   // refs to non-reactive plumbing
   let liveVideoEl: HTMLVideoElement | null = $state(null);
   let canvasEl: HTMLCanvasElement | null = $state(null);
-  let stream: MediaStream | null = null;
+  // `stream` MUST be $state — `recordDisabled` below reads it from a $derived,
+  // and without reactivity that derived never re-evaluates after the camera
+  // attaches, so the Record button stays disabled and clicks silently no-op
+  // (button shows enabled-looking styling via inline style, but the `disabled`
+  // attribute is still set, so onclick never fires).
+  let stream = $state<MediaStream | null>(null);
   let recorder: MediaRecorder | null = null;
   let chunks: Blob[] = [];
   let chosenMime: string | null = null;
