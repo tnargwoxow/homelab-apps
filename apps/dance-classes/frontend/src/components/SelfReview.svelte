@@ -85,6 +85,17 @@
   async function startCamera() {
     if (stream) return;
     permissionError = null;
+    // Browsers gate `navigator.mediaDevices` to secure contexts. Plain http://
+    // on a LAN IP (the typical homelab case) leaves it undefined entirely, so
+    // we have to guard before reaching for `.getUserMedia`.
+    if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+      const isSecure = typeof window !== 'undefined' && window.isSecureContext;
+      permissionError = isSecure
+        ? 'Camera not supported in this browser.'
+        : 'Camera blocked: browsers only allow camera access on https:// or http://localhost. Open via https or, on Chrome desktop, allow this origin in chrome://flags/#unsafely-treat-insecure-origin-as-secure (then restart Chrome).';
+      mode = 'off';
+      return;
+    }
     try {
       stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       // The video element may not be mounted yet on the first $effect run.
