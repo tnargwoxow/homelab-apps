@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyPluginOptions } from 'fastify';
 import type { DB } from '../db/index.js';
+import { compareVideos } from '../lib/sort.js';
 
 interface FolderRow {
   id: number;
@@ -121,8 +122,12 @@ function getFolderPayload(db: DB, folderId: number) {
     LEFT JOIN progress p ON p.video_id = v.id
     LEFT JOIN favorites fav ON fav.video_id = v.id
     WHERE v.folder_id = ?
-    ORDER BY (v.episode_num IS NULL), v.episode_num ASC, v.filename ASC
   `).all(folderId);
+  // SQLite has no natural-number string ordering, so a folder full of
+  // "Day 1", "Day 2", ..., "Day 10" sorts as Day 1, Day 10, Day 2 with a
+  // plain ORDER BY filename. Sort in JS using Intl.Collator(numeric:true)
+  // so the human ordering survives.
+  videos.sort(compareVideos);
 
   return {
     folder: {

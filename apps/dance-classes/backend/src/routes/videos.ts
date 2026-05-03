@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { DB } from '../db/index.js';
 import type { Config } from '../config.js';
 import { resolveSafe } from '../lib/pathSafety.js';
+import { compareVideos } from '../lib/sort.js';
 
 interface VideoMetaRow {
   id: number;
@@ -70,8 +71,10 @@ function findSiblings(db: DB, folderId: number, currentId: number, episodeNum: n
     SELECT id, display_title, episode_num, filename, folder_id
     FROM videos
     WHERE folder_id = ?
-    ORDER BY (episode_num IS NULL), episode_num ASC, filename ASC
   `).all(folderId);
+  // Natural-sort handles "Day 1 / Day 2 / ... / Day 10" correctly where
+  // a SQL string ORDER BY would put Day 10 between Day 1 and Day 2.
+  all.sort(compareVideos);
   const idx = all.findIndex(r => r.id === currentId);
   void episodeNum;
   void filename;
