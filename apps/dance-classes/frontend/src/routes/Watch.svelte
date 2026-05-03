@@ -13,6 +13,7 @@
   import { formatDuration } from '../lib/format';
   import { theme } from '../lib/stores';
   import { celebrate } from '../lib/celebrate';
+  import { refreshStats } from '../lib/stores';
   import HandoffSheet from '../components/HandoffSheet.svelte';
   import { currentQueue } from '../lib/queue';
 
@@ -271,6 +272,7 @@
     api.setWatched(meta.id, true).catch(() => {});
     if (meta) meta = { ...meta, progress: { ...meta.progress, watched: true } };
     celebrate('small');
+    void refreshStats();
     // If a class queue is active and there's a next item in it, prefer that
     // over the natural sibling-by-sibling autoplay chain.
     const q = get(currentQueue);
@@ -301,6 +303,14 @@
     const next = !meta.progress.watched;
     await api.setWatched(meta.id, next);
     meta = { ...meta, progress: { ...meta.progress, watched: next } };
+    if (next) {
+      // Manual mark-as-done should feel identical to letting the video end:
+      // fire the celebration overlay AND re-pull stats so the streak flame
+      // / weekly progress banner reflect the new completion immediately,
+      // without a page reload.
+      celebrate('small');
+      void refreshStats();
+    }
   }
 
   async function resetProgress() {

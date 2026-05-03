@@ -11,6 +11,12 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/icon-192.png', 'icons/icon-512.png'],
       workbox: {
+        // Take over and replace the previously-cached SW immediately on
+        // every deploy. Without these two, the new build sits as "waiting"
+        // until every tab closes, which on a phone means basically never —
+        // the old code keeps serving until you manually clear data.
+        skipWaiting: true,
+        clientsClaim: true,
         // Cache the API under a network-first strategy with a short timeout
         // so going offline falls back to cache; static assets cache-first.
         runtimeCaching: [
@@ -60,5 +66,11 @@ export default defineConfig({
     emptyOutDir: true,
     sourcemap: false,
     target: 'es2022'
+  },
+  // Build-time version stamp visible in the footer so we can tell at a
+  // glance whether the device picked up a fresh deploy or is still serving
+  // a stale SW cache.
+  define: {
+    __APP_BUILD__: JSON.stringify(new Date().toISOString().replace('T', ' ').slice(0, 16))
   }
 });

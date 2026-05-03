@@ -1,30 +1,21 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { api } from '../lib/api';
-  import type { StatsPayload } from '../lib/api';
   import StatsListModal from './StatsListModal.svelte';
-  import { streakState } from '../lib/stores';
+  import { statsState, refreshStats } from '../lib/stores';
 
-  let data = $state<StatsPayload | null>(null);
+  // Subscribe to the shared statsState so any component that calls
+  // refreshStats() (e.g. Watch.svelte after marking watched) updates
+  // this banner instantly without us polling again.
+  let data = $derived($statsState);
   let modalOpen = $state(false);
   let modalCfg = $state<{ title: string; subtitle: string; range: string }>({
     title: '', subtitle: '', range: 'this-week'
   });
 
-  async function refresh() {
-    try {
-      data = await api.stats();
-      streakState.set({
-        current: data.streak.current,
-        longest: data.streak.longest,
-        atRisk:  data.streak.atRisk
-      });
-    } catch { /* keep stale */ }
-  }
   onMount(() => {
-    refresh();
+    void refreshStats();
     // Hourly enough — these stats only move when you watch a video.
-    const t = setInterval(refresh, 5 * 60 * 1000);
+    const t = setInterval(() => { void refreshStats(); }, 5 * 60 * 1000);
     return () => clearInterval(t);
   });
 

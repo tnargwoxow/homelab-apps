@@ -44,11 +44,29 @@ themeId.subscribe(id => {
 
 export const theme = derived(themeId, $id => THEMES[$id]);
 
-// ----- streak -----
-// Mirror of /api/stats `streak` so multiple components can show the flame
-// without each polling the endpoint. WeeklyGoals already polls every 5 min
-// and pushes into here; other consumers just subscribe.
+// ----- stats / streak -----
+// Shared stats payload + streak so WeeklyGoals, the header flame, the
+// Stats page, and any "did the action change anything?" callers can all
+// read from one place. WeeklyGoals owns the periodic poll; anything that
+// mutates server-side stats (mark-watched, autoplay end, cast finished)
+// should also call refreshStats() so the banner updates without a page
+// reload.
+
+import type { StatsPayload } from './api';
 
 export interface StreakState { current: number; longest: number; atRisk: boolean; }
 export const streakState = writable<StreakState>({ current: 0, longest: 0, atRisk: false });
+export const statsState  = writable<StatsPayload | null>(null);
+
+export async function refreshStats(): Promise<void> {
+  try {
+    const s = await api.stats();
+    statsState.set(s);
+    streakState.set({
+      current: s.streak.current,
+      longest: s.streak.longest,
+      atRisk:  s.streak.atRisk
+    });
+  } catch { /* keep stale */ }
+}
 

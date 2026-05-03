@@ -13,6 +13,7 @@
   import ThemeSelector from './components/ThemeSelector.svelte';
   import StreakFlame from './components/StreakFlame.svelte';
   import Celebration from './components/Celebration.svelte';
+  import MascotSwoop from './components/MascotSwoop.svelte';
   import { streakState } from './lib/stores';
   import CastNowPlaying from './components/CastNowPlaying.svelte';
   import PipNowPlaying from './components/PipNowPlaying.svelte';
@@ -145,6 +146,7 @@
       <span>· {$theme.tagline}</span>
       <span style="color: var(--theme-accent);">{$theme.favoritesIcon}</span>
       <span>· LAN-only</span>
+      <span title="Frontend build timestamp — if this isn't recent, your browser is still serving a cached version.">· build {__APP_BUILD__}</span>
     </div>
   </footer>
 
@@ -154,6 +156,7 @@
   <QueueController />
   <ClassBuilder open={builderOpen} onClose={() => (builderOpen = false)} />
   <Celebration />
+  <MascotSwoop />
 
   <StatsListModal
     open={errorsModalOpen}
