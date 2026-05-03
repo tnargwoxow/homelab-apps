@@ -19,9 +19,10 @@ Designed to run on a low-power Proxmox VM. Direct HTTP byte-range streaming, no 
 
 ## Quick start
 
-1. `cp .env.example .env` and set `VIDEOS_HOST_PATH` to the absolute path of your video library on the host.
+1. `cp .env.example .env` and set `VIDEOS_HOST_PATH` (your video library) and `LAN_HOST` (the IP or hostname you'll reach the app at, e.g. `192.168.1.50`).
 2. `docker compose up --build -d`
-3. Open `http://<host-ip>:8080`.
+3. **HTTPS (recommended):** open `https://<LAN_HOST>:8443`. The first time you visit, your browser will warn that the cert isn't trusted — that's expected (Caddy is issuing a self-signed cert covering your `LAN_HOST`). Click "advanced → proceed" once and the device will remember it. **HTTPS is required for the self-review camera mirror** — browsers block `getUserMedia` on plain HTTP non-localhost origins.
+4. Plain HTTP on `http://<LAN_HOST>:8080` still works for everything except the camera mirror, and is what your Chromecasts use to stream videos (they can't trust the self-signed cert, so we keep them on the HTTP port).
 
 ## Deploying on a Proxmox host (one command)
 

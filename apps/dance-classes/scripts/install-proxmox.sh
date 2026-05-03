@@ -223,8 +223,14 @@ fi
 
 cd /opt/homelab-apps/apps/dance-classes
 # /videos is bind-mounted by the host already; tell compose to use that path.
+# LAN_HOST is the IP the user will hit from their phone/laptop. We auto-
+# detect the LXC's primary IPv4 here so https://<ip>:8443 (and the cast
+# stream URL Caddy hands the Chromecast) just works out of the box.
+LAN_HOST=$(ip -4 -o addr show scope global | awk '{print $4}' | cut -d/ -f1 | head -n1)
+LAN_HOST="${LAN_HOST:-localhost}"
 cat > .env <<EOF
 VIDEOS_HOST_PATH=/videos
+LAN_HOST=${LAN_HOST}
 EOF
 
 # Override compose so the host bind path inside the LXC (/videos) is what
@@ -264,7 +270,9 @@ cat <<EOF
 ========================================================
   Mimi's Dance Wonderland is up!
 ========================================================
-  Open:        http://${IP:-<container-ip>}:${APP_PORT}
+  Open (HTTPS, recommended): https://${IP:-<container-ip>}:8443
+                              (accept the self-signed cert warning once)
+  Open (HTTP):                http://${IP:-<container-ip>}:${APP_PORT}
   LXC VMID:    $VMID  (hostname: $HOSTNAME)
   Videos:      $VIDEOS_HOST_PATH  -> /videos (read-only)
 
