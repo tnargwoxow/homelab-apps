@@ -47,7 +47,8 @@
   // ---- state -----------------------------------------------------------------
   type Mode = 'off' | 'mirror' | 'record' | 'compare';
   let mode = $state<Mode>('mirror');
-  let corner = $state<'tl' | 'tr' | 'bl' | 'br'>('br');
+  // Free-drag position in viewport pixels. -1 means "use the default corner".
+  let pos = $state<{ x: number; y: number }>({ x: -1, y: -1 });
   let opacity = $state(1);
   let tileSize = $state<'small' | 'medium' | 'large'>('medium');
   let clips = $state<RecordingMeta[]>([]);
@@ -196,36 +197,81 @@
     }
   }
 
+  // Walk every candidate codec, actually constructing a MediaRecorder for
+  // each. isTypeSupported returns optimistic results on Chrome that don't
+  // always match what `new MediaRecorder` accepts, which used to leave
+  // record silently broken (button looked enabled, click did nothing).
+  function buildRecorder(s: MediaStream): { recorder: MediaRecorder; mime: string } | null {
+    for (const m of CODEC_CANDIDATES) {
+      try {
+        const r = new MediaRecorder(s, { mimeType: m });
+        return { recorder: r, mime: m };
+      } catch (err) {
+        // Try the next codec.
+        // eslint-disable-next-line no-console
+        console.warn('[self-review] codec rejected', m, err);
+      }
+    }
+    // Last resort: let the browser pick whatever it wants.
+    try {
+      const r = new MediaRecorder(s);
+      return { recorder: r, mime: r.mimeType || 'video/webm' };
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.warn('[self-review] fallback recorder failed', err);
+    }
+    return null;
+  }
+
   async function startRecording() {
-    if (!stream || videoId === undefined) return;
+    if (!stream || videoId === undefined) {
+      recordingError = videoId === undefined
+        ? 'Pick a video first.'
+        : 'Camera not ready yet.';
+      return;
+    }
     if (recorder) return;
     recordingError = null;
     storageError = null;
-    const mime = pickMime();
-    if (!mime) {
+    chunks = [];
+
+    const built = buildRecorder(stream);
+    if (!built) {
       recordingError = 'Recording not supported on this browser; mirror still works.';
       return;
     }
-    chosenMime = mime;
-    chunks = [];
-    try {
-      recorder = new MediaRecorder(stream, { mimeType: mime });
-    } catch (err) {
-      recordingError = `Could not start recorder: ${(err as Error).message ?? 'unknown'}`;
-      recorder = null;
-      return;
-    }
+    recorder = built.recorder;
+    chosenMime = built.mime;
+
     recorder.ondataavailable = (ev) => {
       if (ev.data && ev.data.size > 0) chunks.push(ev.data);
     };
     recorder.onstop = () => { void finalizeRecording(); };
+    recorder.onerror = (ev) => {
+      // eslint-disable-next-line no-console
+      console.error('[self-review] recorder error', ev);
+      recordingError = `Recorder error: ${(ev as unknown as { error?: { message?: string } })?.error?.message ?? 'unknown'}`;
+      abortRecorder();
+    };
+
+    try {
+      recorder.start(1000);
+    } catch (err) {
+      // eslint-disable-next-line no-console
+      console.error('[self-review] recorder.start() threw', err);
+      recordingError = `Could not start recording: ${(err as Error).message ?? 'unknown'}`;
+      try { recorder.stop(); } catch { /* ignore */ }
+      recorder = null;
+      chosenMime = null;
+      return;
+    }
+
     recStartedAt = Date.now();
     recElapsedSec = 0;
     recTimer = setInterval(() => {
       recElapsedSec = Math.floor((Date.now() - recStartedAt) / 1000);
       if (recElapsedSec >= MAX_CLIP_SECONDS) stopRecording();
     }, 250);
-    recorder.start(1000);
     mode = 'record';
   }
 
@@ -304,29 +350,104 @@
   }
 
   // ---- layout ----------------------------------------------------------------
-  let cornerStyle = $derived.by(() => {
-    const offset = '1rem';
-    const v = corner[0] === 't' ? `top: ${offset};` : `bottom: ${offset};`;
-    const h = corner[1] === 'l' ? `left: ${offset};` : `right: ${offset};`;
-    return `${v} ${h}`;
+  // Free-drag positioning. We persist the last-used coordinates so the tile
+  // re-opens where she left it. -1 marks "uninitialised" — the first render
+  // anchors the tile at the bottom-right via fallback CSS.
+  const POS_STORAGE_KEY = 'mimi:self-review-pos';
+
+  // Hydrate from localStorage on first script run (Svelte 5 runs <script>
+  // once per component instance, so this is fine outside onMount).
+  if (typeof window !== 'undefined') {
+    try {
+      const raw = window.localStorage.getItem(POS_STORAGE_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (Number.isFinite(p?.x) && Number.isFinite(p?.y)) pos = p;
+      }
+    } catch { /* ignore corrupted entry */ }
+  }
+
+  $effect(() => {
+    if (typeof window === 'undefined') return;
+    if (pos.x < 0 || pos.y < 0) return;
+    try { window.localStorage.setItem(POS_STORAGE_KEY, JSON.stringify(pos)); } catch { /* ignore */ }
   });
-  let widthStyle = $derived.by(() => {
-    const w = tileSize === 'small' ? 200 : tileSize === 'large' ? 360 : 280;
-    return `width: ${w}px;`;
+
+  let widthPx = $derived(tileSize === 'small' ? 200 : tileSize === 'large' ? 360 : 280);
+
+  let positionStyle = $derived.by(() => {
+    if (pos.x >= 0 && pos.y >= 0) return `left: ${pos.x}px; top: ${pos.y}px;`;
+    // Default corner: bottom-right.
+    return `right: 1rem; bottom: 1rem;`;
   });
+  let widthStyle = $derived(`width: ${widthPx}px;`);
+
+  // ---- drag ------------------------------------------------------------------
+  let dragging = $state(false);
+  let dragOffset = { x: 0, y: 0 };
+  let tileEl: HTMLDivElement | null = $state(null);
+
+  function onDragStart(e: PointerEvent) {
+    // Skip drags that originate inside an interactive control so taps still
+    // hit Record / Compare / sliders without starting a drag.
+    const t = e.target as HTMLElement | null;
+    if (t?.closest('button, input, select, textarea, label, a')) return;
+    if (!tileEl) return;
+    const rect = tileEl.getBoundingClientRect();
+    // First-time drag from the corner anchor: convert to absolute coords.
+    if (pos.x < 0 || pos.y < 0) pos = { x: rect.left, y: rect.top };
+    dragOffset = { x: e.clientX - pos.x, y: e.clientY - pos.y };
+    dragging = true;
+    try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    e.preventDefault();
+  }
+  function onDragMove(e: PointerEvent) {
+    if (!dragging) return;
+    e.preventDefault();
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    // Keep at least 64px of the tile on-screen so it can't be lost.
+    const maxX = Math.max(0, w - 64);
+    const maxY = Math.max(0, h - 48);
+    pos = {
+      x: Math.max(0, Math.min(maxX, e.clientX - dragOffset.x)),
+      y: Math.max(0, Math.min(maxY, e.clientY - dragOffset.y))
+    };
+  }
+  function onDragEnd(e: PointerEvent) {
+    dragging = false;
+    try { (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+  }
+  function snapToCorner(c: 'tl' | 'tr' | 'bl' | 'br') {
+    const margin = 16;
+    const tileH = tileEl?.getBoundingClientRect().height ?? 320;
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+    pos = {
+      x: c[1] === 'l' ? margin : Math.max(margin, w - widthPx - margin),
+      y: c[0] === 't' ? margin : Math.max(margin, h - tileH - margin)
+    };
+  }
 
   let recordDisabled = $derived(mode === 'off' || !stream || videoId === undefined || !recordSupported);
 </script>
 
 {#if visible}
   <div
+    bind:this={tileEl}
     class="fixed z-30 select-none rounded-2xl ring-2 shadow-2xl"
-    style="{cornerStyle} {widthStyle} background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring); opacity: {opacity};"
+    style="{positionStyle} {widthStyle} background: var(--theme-card-bg); --tw-ring-color: var(--theme-card-ring); border-color: var(--theme-card-ring); opacity: {opacity};"
     aria-label="Self-review tile"
   >
-    <!-- header -->
-    <div class="flex items-center justify-between gap-2 rounded-t-2xl px-3 py-2"
-         style="background: var(--theme-pill-bg); border-bottom: 1px solid var(--theme-card-ring);">
+    <!-- header (drag handle) -->
+    <div class="flex items-center justify-between gap-2 rounded-t-2xl px-3 py-2 touch-none"
+         class:cursor-grabbing={dragging}
+         class:cursor-grab={!dragging}
+         style="background: var(--theme-pill-bg); border-bottom: 1px solid var(--theme-card-ring);"
+         onpointerdown={onDragStart}
+         onpointermove={onDragMove}
+         onpointerup={onDragEnd}
+         onpointercancel={onDragEnd}>
       <span class="text-xs font-semibold" style="color: var(--theme-text-strong);">
         {#if mode === 'record'}
           <span class="inline-block h-2 w-2 animate-pulse rounded-full" style="background:#ef4444;"></span>
@@ -428,24 +549,22 @@
         </div>
       {/if}
 
-      <!-- corner picker + opacity -->
+      <!-- snap-to-corner shortcuts (drag the header for free placement) + opacity -->
       <div class="flex flex-wrap items-center gap-1">
         {#each [['tl','↖'],['tr','↗'],['bl','↙'],['br','↘']] as [c, glyph] (c)}
           <button
             type="button"
             class="rounded-full px-2 py-0.5 text-xs ring-1"
-            style={corner === c
-              ? 'background: var(--theme-accent); color:#fff; --tw-ring-color: var(--theme-accent); border-color: var(--theme-accent);'
-              : 'background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);'}
-            onclick={() => (corner = c as 'tl' | 'tr' | 'bl' | 'br')}
-            title="Move tile to {c}"
+            style="background: var(--theme-pill-bg); color: var(--theme-pill-text); --tw-ring-color: var(--theme-pill-ring); border-color: var(--theme-pill-ring);"
+            onclick={() => snapToCorner(c as 'tl' | 'tr' | 'bl' | 'br')}
+            title="Snap tile to {c} (or drag the header)"
           >{glyph}</button>
         {/each}
         <label class="ml-auto flex items-center gap-1 text-xs" style="color: var(--theme-text-muted);">
           α
           <input
             type="range"
-            min="0.4"
+            min="0.2"
             max="1"
             step="0.05"
             bind:value={opacity}

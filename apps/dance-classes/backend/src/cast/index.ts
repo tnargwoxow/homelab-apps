@@ -117,13 +117,21 @@ const sessions = new Map<string, InternalSession>();
 function markWatchedInDb(videoId: number): void {
   if (!dbRef) return;
   try {
+    // Match the /watched route: write position == duration so stats count
+    // this completion the same as a local "ended" event, not a 0-second row.
+    const v = dbRef.prepare<[number], { duration_sec: number | null }>(
+      'SELECT duration_sec FROM videos WHERE id = ?'
+    ).get(videoId);
+    const dur = v?.duration_sec && v.duration_sec > 0 ? v.duration_sec : 60;
     dbRef.prepare(`
-      INSERT INTO progress(video_id, watched, position_seconds, updated_at)
-      VALUES (?, 1, 0, unixepoch())
+      INSERT INTO progress(video_id, watched, position_seconds, duration_seconds, updated_at)
+      VALUES (?, 1, ?, ?, unixepoch())
       ON CONFLICT(video_id) DO UPDATE SET
-        watched = 1,
-        updated_at = unixepoch()
-    `).run(videoId);
+        watched          = 1,
+        position_seconds = MAX(progress.position_seconds, excluded.position_seconds),
+        duration_seconds = COALESCE(excluded.duration_seconds, progress.duration_seconds),
+        updated_at       = unixepoch()
+    `).run(videoId, dur, v?.duration_sec ?? null);
   } catch (err) {
     logger?.warn?.({ err, videoId }, 'failed to mark cast video as watched');
   }
