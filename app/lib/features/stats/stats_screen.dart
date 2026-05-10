@@ -11,7 +11,8 @@ class StatsScreen extends StatelessWidget {
         child: EmptyState(
           icon: Icons.bar_chart_outlined,
           title: 'Stats',
-          message: 'Practice time, sessions, recordings, charts land in Phase 5.',
+          message:
+              'Practice time, sessions, recordings, charts land in Phase 5.',
         ),
       ),
     );

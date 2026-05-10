@@ -1,0 +1,24 @@
+name: video_engine_media_kit
+description: media_kit-based implementation of the dance_app VideoEngine.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  media_kit: ^1.1.10
+  media_kit_video: ^1.2.4
+  media_kit_libs_video: ^1.0.4
+
+  core_api:
+    path: ../core_api
+  video_engine_api:
+    path: ../video_engine_api
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
