@@ -146,10 +146,15 @@ class CameraServiceImpl implements CameraService {
     _recording = false;
     _recordingStart = null;
     _emit();
+    // On web, camera_web returns a `blob:` URL; treat it as network so
+    // downstream code (MediaRepository, media_kit playback) handles it as a
+    // streamable URI rather than a local-FS path.
+    final isBlob = file.path.startsWith('blob:');
     return RecordingResult(
       ref: MediaRef(
         uri: file.path,
-        sourceType: MediaSourceType.localFile,
+        sourceType:
+            isBlob ? MediaSourceType.network : MediaSourceType.localFile,
       ),
       duration: DateTime.now().difference(start),
     );

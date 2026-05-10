@@ -12,6 +12,13 @@ import 'package:video_engine_media_kit/video_engine_media_kit.dart';
 import '../../composition_root.dart';
 import '../player/player_providers.dart';
 
+/// Recordings for a given tutorial. Watched by the practice screen.
+final recordingsProvider =
+    FutureProvider.family<List<RecordingMedia>, TutorialId>((ref, id) async {
+  final repo = ref.watch(mediaRepositoryProvider);
+  return repo.listRecordings(id);
+});
+
 /// Live practice mode: tutorial video underneath, camera preview composited
 /// on top at adjustable opacity, with a record button that saves the camera
 /// stream as a recording.
@@ -141,6 +148,18 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
             duration: result.duration,
             type: RecordingType.liveOverlay,
           );
+          ref.invalidate(recordingsProvider(tutorialId));
+          if (mounted) {
+            final secs = result.duration.inMilliseconds / 1000;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Recording saved (${secs.toStringAsFixed(1)}s)',
+                ),
+                duration: const Duration(seconds: 2),
+              ),
+            );
+          }
         }
       } else {
         await camera.startRecording();
@@ -278,8 +297,175 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ),
+          const Divider(height: 24),
+          Expanded(child: _RecordingsList(tutorialId: selected)),
         ],
       ),
+    );
+  }
+}
+
+class _RecordingsList extends ConsumerWidget {
+  const _RecordingsList({required this.tutorialId});
+
+  final TutorialId tutorialId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final asyncRecs = ref.watch(recordingsProvider(tutorialId));
+    return asyncRecs.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Padding(
+        padding: const EdgeInsets.all(16),
+        child: Text(
+          'Failed to load recordings: $e',
+          style: TextStyle(color: Theme.of(context).colorScheme.error),
+        ),
+      ),
+      data: (recordings) {
+        if (recordings.isEmpty) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Text(
+              'Your recordings will show here.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: <Widget>[
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Your recordings (${recordings.length})',
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Expanded(
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: recordings.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 4),
+                itemBuilder: (context, i) {
+                  final r = recordings[i];
+                  final secs =
+                      (r.duration.inMilliseconds / 1000).toStringAsFixed(1);
+                  final ts = r.createdAt.toLocal();
+                  return ListTile(
+                    leading: const Icon(Icons.movie_outlined),
+                    title: Text('${secs}s · ${_formatTimestamp(ts)}'),
+                    subtitle: Text(r.type.name,
+                        style: Theme.of(context).textTheme.bodySmall),
+                    trailing: IconButton(
+                      tooltip: 'Delete',
+                      icon: const Icon(Icons.delete_outline),
+                      onPressed: () async {
+                        await ref
+                            .read(mediaRepositoryProvider)
+                            .deleteRecording(r.id);
+                        ref.invalidate(recordingsProvider(tutorialId));
+                      },
+                    ),
+                    onTap: () => _showRecordingDialog(context, r),
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  String _formatTimestamp(DateTime dt) {
+    String two(int n) => n.toString().padLeft(2, '0');
+    return '${dt.year}-${two(dt.month)}-${two(dt.day)} '
+        '${two(dt.hour)}:${two(dt.minute)}';
+  }
+}
+
+Future<void> _showRecordingDialog(BuildContext context, RecordingMedia r) {
+  return showDialog<void>(
+    context: context,
+    builder: (ctx) => Dialog(
+      child: SizedBox(
+        width: 480,
+        child: _RecordingPlayer(recording: r),
+      ),
+    ),
+  );
+}
+
+class _RecordingPlayer extends StatefulWidget {
+  const _RecordingPlayer({required this.recording});
+  final RecordingMedia recording;
+
+  @override
+  State<_RecordingPlayer> createState() => _RecordingPlayerState();
+}
+
+class _RecordingPlayerState extends State<_RecordingPlayer> {
+  late final MediaKitVideoEngine _engine;
+  bool _ready = false;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    MediaKitVideoEngine.ensureInitialized();
+    _engine = MediaKitVideoEngine();
+    _load();
+  }
+
+  Future<void> _load() async {
+    try {
+      await _engine.load(widget.recording.ref);
+      await _engine.play();
+      if (mounted) setState(() => _ready = true);
+    } catch (e) {
+      if (mounted) setState(() => _error = '$e');
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_engine.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        AspectRatio(
+          aspectRatio: 16 / 9,
+          child: _error != null
+              ? Center(child: Text(_error!))
+              : _ready
+                  ? MediaKitVideoView(engine: _engine)
+                  : const Center(child: CircularProgressIndicator()),
+        ),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: <Widget>[
+            TextButton(
+              onPressed: () => unawaited(_engine.play()),
+              child: const Text('Play'),
+            ),
+            TextButton(
+              onPressed: () => unawaited(_engine.pause()),
+              child: const Text('Pause'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Close'),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
