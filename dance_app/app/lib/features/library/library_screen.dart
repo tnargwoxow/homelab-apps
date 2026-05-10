@@ -53,14 +53,31 @@ class LibraryScreen extends ConsumerWidget {
               childAspectRatio: 16 / 12,
             ),
             itemCount: tutorials.length,
-            itemBuilder: (context, i) => _TutorialCard(
-              tutorial: tutorials[i],
-              onTap: () {
-                ref.read(selectedTutorialIdProvider.notifier).state =
-                    tutorials[i].id;
-                context.go('/player');
-              },
-            ),
+            itemBuilder: (context, i) {
+              final t = tutorials[i];
+              return Consumer(builder: (context, ref, _) {
+                final recsAsync = ref.watch(tutorialRecordingsProvider(t.id));
+                final recCount =
+                    recsAsync.maybeWhen(data: (r) => r.length, orElse: () => 0);
+                final lastPracticed = recsAsync.maybeWhen(
+                  data: (r) => r.isEmpty
+                      ? null
+                      : r.map((x) => x.createdAt).reduce(
+                            (a, b) => a.isAfter(b) ? a : b,
+                          ),
+                  orElse: () => null,
+                );
+                return _TutorialCard(
+                  tutorial: t,
+                  recordingCount: recCount,
+                  lastPracticed: lastPracticed,
+                  onTap: () {
+                    ref.read(selectedTutorialIdProvider.notifier).state = t.id;
+                    context.go('/player');
+                  },
+                );
+              });
+            },
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -75,10 +92,17 @@ class LibraryScreen extends ConsumerWidget {
 }
 
 class _TutorialCard extends StatelessWidget {
-  const _TutorialCard({required this.tutorial, required this.onTap});
+  const _TutorialCard({
+    required this.tutorial,
+    required this.onTap,
+    this.recordingCount = 0,
+    this.lastPracticed,
+  });
 
   final TutorialMedia tutorial;
   final VoidCallback onTap;
+  final int recordingCount;
+  final DateTime? lastPracticed;
 
   @override
   Widget build(BuildContext context) {
@@ -92,19 +116,55 @@ class _TutorialCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
             Expanded(
-              child: ColoredBox(
-                color: theme.colorScheme.surfaceContainerHighest,
-                child:
-                    const Center(child: Icon(Icons.movie_outlined, size: 40)),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  ColoredBox(
+                    color: theme.colorScheme.surfaceContainerHighest,
+                    child: const Center(
+                        child: Icon(Icons.movie_outlined, size: 40)),
+                  ),
+                  if (recordingCount > 0)
+                    Positioned(
+                      top: 6,
+                      right: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 8, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '$recordingCount',
+                          style: theme.textTheme.labelSmall?.copyWith(
+                            color: theme.colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
             ),
             Padding(
               padding: const EdgeInsets.all(8),
-              child: Text(
-                tutorial.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    tutorial.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall,
+                  ),
+                  if (lastPracticed != null)
+                    Text(
+                      'Last: ${lastPracticed!.toIso8601String().substring(0, 10)}',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                ],
               ),
             ),
           ],

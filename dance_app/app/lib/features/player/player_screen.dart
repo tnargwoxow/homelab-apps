@@ -91,30 +91,46 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
     }
   }
 
-  Future<void> _setupGhost() async {
+  /// Looks up every recording for the current tutorial and pairs it with its
+  /// AlignmentPreset (or null if not aligned). Used both to populate the
+  /// ghost picker and to decide whether to enable the Ghost toggle.
+  Future<List<(RecordingMedia, AlignmentPreset?)>> _alignedCandidates() async {
     final tutorialId = _loadedTutorialId;
-    if (tutorialId == null) return;
+    if (tutorialId == null) return const <(RecordingMedia, AlignmentPreset?)>[];
     final repo = ref.read(mediaRepositoryProvider);
     final store = ref.read(metadataStoreProvider);
     final recordings = await repo.listRecordings(tutorialId);
-    AlignmentPreset? chosenPreset;
-    RecordingMedia? chosenRec;
+    final out = <(RecordingMedia, AlignmentPreset?)>[];
     for (final r in recordings) {
-      final preset = await store.alignmentFor(r.id);
-      if (preset != null) {
-        chosenPreset = preset;
-        chosenRec = r;
-        break;
-      }
+      out.add((r, await store.alignmentFor(r.id)));
     }
-    if (chosenPreset == null || chosenRec == null) {
+    return out;
+  }
+
+  Future<void> _setupGhost(
+      {RecordingMedia? prefer, AlignmentPreset? preferPreset}) async {
+    final candidates = await _alignedCandidates();
+    final aligned = candidates
+        .where((c) => c.$2 != null)
+        .map((c) => (c.$1, c.$2!))
+        .toList();
+    if (aligned.isEmpty) {
       if (!mounted) return;
       setState(() {
         _ghostOn = false;
-        _ghostError = 'No aligned recordings yet. Align one in the Align tab.';
+        _ghostError =
+            'No aligned recordings yet. Align one in the Align tab first.';
       });
       return;
     }
+    final pair = prefer != null && preferPreset != null
+        ? (prefer, preferPreset)
+        : aligned.first;
+    final chosenRec = pair.$1;
+    final chosenPreset = pair.$2;
+
+    // Tear down any previous ghost engine before bringing up a new one.
+    await _tearDownGhost();
 
     final engine = MediaKitVideoEngine();
     await engine.load(chosenRec.ref);
@@ -160,6 +176,51 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
         _ghostPreset = null;
       });
     }
+  }
+
+  Future<void> _pickGhostRecording() async {
+    final candidates = await _alignedCandidates();
+    final aligned = candidates
+        .where((c) => c.$2 != null)
+        .map((c) => (c.$1, c.$2!))
+        .toList();
+    if (!mounted) return;
+    if (aligned.isEmpty) {
+      setState(() => _ghostError = 'No aligned recordings to choose from.');
+      return;
+    }
+    final selected =
+        await showModalBottomSheet<(RecordingMedia, AlignmentPreset)>(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            const Padding(
+              padding: EdgeInsets.all(12),
+              child: Text('Choose a recording to ghost'),
+            ),
+            for (final pair in aligned)
+              ListTile(
+                leading: const Icon(Icons.layers_outlined),
+                title: Text(pair.$1.createdAt
+                    .toIso8601String()
+                    .substring(0, 16)
+                    .replaceAll('T', ' ')),
+                subtitle: Text(
+                  '${pair.$1.duration.inSeconds}s · ${pair.$1.type.name}',
+                ),
+                trailing: pair.$1.id == _ghostRecording?.id
+                    ? const Icon(Icons.check)
+                    : null,
+                onTap: () => Navigator.of(ctx).pop(pair),
+              ),
+          ],
+        ),
+      ),
+    );
+    if (selected == null || !mounted) return;
+    await _setupGhost(prefer: selected.$1, preferPreset: selected.$2);
   }
 
   Future<void> _ensureLoaded(TutorialId? id) async {
@@ -314,6 +375,7 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               error: _ghostError,
               onToggle: (v) => unawaited(_toggleGhost(v)),
               onOpacity: (v) => setState(() => _ghostOpacity = v),
+              onPick: () => unawaited(_pickGhostRecording()),
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -367,6 +429,7 @@ class _GhostControls extends StatelessWidget {
     required this.error,
     required this.onToggle,
     required this.onOpacity,
+    required this.onPick,
   });
 
   final bool isOn;
@@ -375,6 +438,7 @@ class _GhostControls extends StatelessWidget {
   final String? error;
   final ValueChanged<bool> onToggle;
   final ValueChanged<double> onOpacity;
+  final VoidCallback onPick;
 
   @override
   Widget build(BuildContext context) {
@@ -398,6 +462,12 @@ class _GhostControls extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                     overflow: TextOverflow.ellipsis,
                   ),
+                ),
+              if (isOn)
+                TextButton.icon(
+                  onPressed: onPick,
+                  icon: const Icon(Icons.swap_horiz, size: 18),
+                  label: const Text('Change'),
                 ),
             ],
           ),

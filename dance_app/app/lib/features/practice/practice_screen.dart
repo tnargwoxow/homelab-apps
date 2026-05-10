@@ -12,13 +12,6 @@ import 'package:video_engine_media_kit/video_engine_media_kit.dart';
 import '../../composition_root.dart';
 import '../player/player_providers.dart';
 
-/// Recordings for a given tutorial. Watched by the practice screen.
-final recordingsProvider =
-    FutureProvider.family<List<RecordingMedia>, TutorialId>((ref, id) async {
-  final repo = ref.watch(mediaRepositoryProvider);
-  return repo.listRecordings(id);
-});
-
 /// Live practice mode: tutorial video underneath, camera preview composited
 /// on top at adjustable opacity, with a record button that saves the camera
 /// stream as a recording.
@@ -148,7 +141,7 @@ class _PracticeScreenState extends ConsumerState<PracticeScreen> {
             duration: result.duration,
             type: RecordingType.liveOverlay,
           );
-          ref.invalidate(recordingsProvider(tutorialId));
+          ref.invalidate(tutorialRecordingsProvider(tutorialId));
           if (mounted) {
             final secs = result.duration.inMilliseconds / 1000;
             ScaffoldMessenger.of(context).showSnackBar(
@@ -312,7 +305,7 @@ class _RecordingsList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncRecs = ref.watch(recordingsProvider(tutorialId));
+    final asyncRecs = ref.watch(tutorialRecordingsProvider(tutorialId));
     return asyncRecs.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Padding(
@@ -365,7 +358,7 @@ class _RecordingsList extends ConsumerWidget {
                         await ref
                             .read(mediaRepositoryProvider)
                             .deleteRecording(r.id);
-                        ref.invalidate(recordingsProvider(tutorialId));
+                        ref.invalidate(tutorialRecordingsProvider(tutorialId));
                       },
                     ),
                     onTap: () => _showRecordingDialog(context, r),

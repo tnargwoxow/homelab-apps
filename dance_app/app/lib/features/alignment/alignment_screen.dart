@@ -41,6 +41,7 @@ class _AlignmentScreenState extends ConsumerState<AlignmentScreen> {
 
   double? _lastRms;
   String? _statusText;
+  AlignmentPreset? _existingPreset;
 
   StreamSubscription<Duration>? _tutPosSub;
   StreamSubscription<Duration>? _recPosSub;
@@ -109,12 +110,40 @@ class _AlignmentScreenState extends ConsumerState<AlignmentScreen> {
     final rec = await repo.getRecording(id);
     if (rec == null || !mounted) return;
     await _recordingEngine.load(rec.ref);
+    final store = ref.read(metadataStoreProvider);
+    final existing = await store.alignmentFor(id);
     if (!mounted) return;
     setState(() {
       _loadedRecordingId = id;
       _recordingPts.clear();
+      _tutorialPts.clear();
       _lastRms = null;
       _statusText = null;
+      _existingPreset = existing;
+    });
+    // If there's a saved preset, jump both engines to its keyframes so the
+    // user can immediately see the frames the previous alignment was made
+    // against.
+    if (existing != null) {
+      await _tutorialEngine
+          .seek(Duration(milliseconds: existing.tutorialKeyframeMs));
+      await _recordingEngine
+          .seek(Duration(milliseconds: existing.recordingKeyframeMs));
+    }
+  }
+
+  Future<void> _resetExistingPreset() async {
+    final id = _loadedRecordingId;
+    if (id == null) return;
+    // The metadata store API only upserts; there's no delete. We treat a
+    // re-save as the reset path. Just clear the local view so the user can
+    // tap fresh points.
+    setState(() {
+      _existingPreset = null;
+      _tutorialPts.clear();
+      _recordingPts.clear();
+      _lastRms = null;
+      _statusText = 'Cleared — tap new landmarks and Save to replace.';
     });
   }
 
@@ -209,6 +238,7 @@ class _AlignmentScreenState extends ConsumerState<AlignmentScreen> {
       if (!mounted) return;
       setState(() {
         _lastRms = rms;
+        _existingPreset = preset;
         _statusText =
             'Saved. RMS error ${(rms * 100).toStringAsFixed(2)}% of frame size.';
       });
@@ -236,7 +266,7 @@ class _AlignmentScreenState extends ConsumerState<AlignmentScreen> {
       );
     }
 
-    final recordingsAsync = ref.watch(_recordingsListProvider(selected));
+    final recordingsAsync = ref.watch(tutorialRecordingsProvider(selected));
 
     return Scaffold(
       body: SafeArea(
@@ -259,6 +289,13 @@ class _AlignmentScreenState extends ConsumerState<AlignmentScreen> {
                 loading: () => const LinearProgressIndicator(),
                 error: (e, _) => Text('Failed to load recordings: $e'),
               ),
+              if (_existingPreset != null) ...<Widget>[
+                const SizedBox(height: 8),
+                _ExistingPresetBanner(
+                  preset: _existingPreset!,
+                  onReset: _resetExistingPreset,
+                ),
+              ],
               const SizedBox(height: 8),
               Expanded(
                 child: LayoutBuilder(
@@ -336,11 +373,45 @@ class _AlignmentScreenState extends ConsumerState<AlignmentScreen> {
   }
 }
 
-final _recordingsListProvider =
-    FutureProvider.family<List<RecordingMedia>, TutorialId>((ref, id) async {
-  final repo = ref.watch(mediaRepositoryProvider);
-  return repo.listRecordings(id);
-});
+class _ExistingPresetBanner extends StatelessWidget {
+  const _ExistingPresetBanner({required this.preset, required this.onReset});
+
+  final AlignmentPreset preset;
+  final VoidCallback onReset;
+
+  @override
+  Widget build(BuildContext context) {
+    final ts = preset.createdAt
+        .toIso8601String()
+        .substring(0, 16)
+        .replaceAll('T', ' ');
+    return Card(
+      color: Theme.of(context).colorScheme.primaryContainer,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          children: <Widget>[
+            const Icon(Icons.check_circle_outline, size: 18),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Already aligned · saved $ts · keyframes '
+                '${(preset.tutorialKeyframeMs / 1000).toStringAsFixed(1)}s '
+                '↔ ${(preset.recordingKeyframeMs / 1000).toStringAsFixed(1)}s',
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onReset,
+              icon: const Icon(Icons.refresh),
+              label: const Text('Re-align'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 class _RecordingPicker extends StatelessWidget {
   const _RecordingPicker({
