@@ -1,0 +1,8 @@
+name: dance_app_workspace
+publish_to: none
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dev_dependencies:
+  melos: ^6.2.0
