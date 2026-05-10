@@ -1,22 +1,26 @@
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: tamagotchi
-  namespace: argocd
-  finalizers:
-    - resources-finalizer.argocd.argoproj.io
-spec:
-  project: default
-  source:
-    repoURL: https://github.com/tnargwoxow/homelab-apps.git
-    targetRevision: HEAD
-    path: overlays/tamagotchi
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: tamagotchi
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true
+# Disabled: this app is currently hosted directly on the Mac as a local
+# Docker container (see services/tamagotchi/README.md). Re-enable by
+# uncommenting once an image registry is wired up.
+#
+# apiVersion: argoproj.io/v1alpha1
+# kind: Application
+# metadata:
+#   name: tamagotchi
+#   namespace: argocd
+#   finalizers:
+#     - resources-finalizer.argocd.argoproj.io
+# spec:
+#   project: default
+#   source:
+#     repoURL: https://github.com/tnargwoxow/homelab-apps.git
+#     targetRevision: HEAD
+#     path: overlays/tamagotchi
+#   destination:
+#     server: https://kubernetes.default.svc
+#     namespace: tamagotchi
+#   syncPolicy:
+#     automated:
+#       prune: true
+#       selfHeal: true
+#     syncOptions:
+#       - CreateNamespace=true
