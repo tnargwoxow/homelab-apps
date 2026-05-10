@@ -162,6 +162,24 @@ class AdvanceBody(BaseModel):
     minutes: int = 60
 
 
+class SetStateBody(BaseModel):
+    age_minutes: int | None = None
+    life_stage: str | None = None
+    hunger: float | None = None
+    happiness: float | None = None
+    discipline: float | None = None
+    weight: float | None = None
+    poop_count: int | None = None
+    is_sleeping: bool | None = None
+    is_sick: bool | None = None
+    alive: bool | None = None
+    care_mistakes: float | None = None
+    lights_off: bool | None = None
+    wants_attention: bool | None = None
+    attention_real: bool | None = None
+    name: str | None = None
+
+
 @app.get("/api/dev/status")
 def dev_status() -> dict:
     return {"enabled": DEV_MODE}
@@ -181,6 +199,20 @@ def dev_advance(body: AdvanceBody) -> dict:
     db.save_pet(pet)
     db.log_event(pet.id, "dev_advance", {"minutes": body.minutes})
     return {"pet": pet.to_dict(), "msg": f"advanced {body.minutes} minutes"}
+
+
+@app.post("/api/dev/setstate")
+def dev_setstate(body: SetStateBody) -> dict:
+    """Patch arbitrary fields on the pet for testing. Dev-mode only."""
+    if not DEV_MODE:
+        raise HTTPException(status_code=403, detail="dev mode disabled")
+    pet = db.get_or_create_pet(_now_ms())
+    patch = body.model_dump(exclude_unset=True)
+    for k, v in patch.items():
+        setattr(pet, k, v)
+    db.save_pet(pet)
+    db.log_event(pet.id, "dev_setstate", patch)
+    return {"pet": pet.to_dict(), "msg": f"patched {list(patch)}"}
 
 
 @app.get("/")
