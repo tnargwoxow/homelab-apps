@@ -1,0 +1,25 @@
+name: test_fixtures
+description: In-memory fakes for every dance_app *_api. Used by tests and the app shell during Phase 0.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  core_api:
+    path: ../core_api
+  video_engine_api:
+    path: ../video_engine_api
+  camera_service_api:
+    path: ../camera_service_api
+  pose_detection_api:
+    path: ../pose_detection_api
+  media_repo_api:
+    path: ../media_repo_api
+  metadata_store_api:
+    path: ../metadata_store_api
+  meta: ^1.12.0
+
+dev_dependencies:
+  test: ^1.25.0

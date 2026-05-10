@@ -1,0 +1,42 @@
+name: dance_app
+description: Cross-platform dance practice app shell.
+publish_to: none
+version: 0.1.0+1
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+  flutter: ">=3.22.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_riverpod: ^2.5.1
+  go_router: ^14.2.0
+
+  core_api:
+    path: ../packages/core_api
+  ui_kit:
+    path: ../packages/ui_kit
+  video_engine_api:
+    path: ../packages/video_engine_api
+  camera_service_api:
+    path: ../packages/camera_service_api
+  pose_detection_api:
+    path: ../packages/pose_detection_api
+  media_repo_api:
+    path: ../packages/media_repo_api
+  metadata_store_api:
+    path: ../packages/metadata_store_api
+  alignment:
+    path: ../packages/alignment
+  stats_engine:
+    path: ../packages/stats_engine
+  test_fixtures:
+    path: ../packages/test_fixtures
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
