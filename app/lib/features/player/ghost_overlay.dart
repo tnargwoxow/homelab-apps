@@ -27,26 +27,28 @@ class GhostOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final w = constraints.maxWidth;
-        final h = constraints.maxHeight;
-        final m = _matrixFor(preset.matrix, w, h);
-        return IgnorePointer(
-          child: Opacity(
-            opacity: opacity,
-            child: Transform(
-              transform: m,
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: w,
-                height: h,
-                child: MediaKitVideoView(engine: engine),
+    return ClipRect(
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final w = constraints.maxWidth;
+          final h = constraints.maxHeight;
+          final m = _matrixFor(preset.matrix, w, h);
+          return IgnorePointer(
+            child: Opacity(
+              opacity: opacity,
+              child: Transform(
+                transform: m,
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: w,
+                  height: h,
+                  child: MediaKitVideoView(engine: engine),
+                ),
               ),
             ),
-          ),
-        );
-      },
+          );
+        },
+      ),
     );
   }
 
