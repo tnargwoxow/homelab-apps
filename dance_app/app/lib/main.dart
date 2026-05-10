@@ -5,10 +5,12 @@ import 'package:ui_kit/ui_kit.dart';
 import 'composition_root.dart';
 import 'router.dart';
 
-void main() {
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final overrides = await buildRealOverrides();
   runApp(
     ProviderScope(
-      overrides: buildFakeOverrides(),
+      overrides: overrides,
       child: const DanceApp(),
     ),
   );

@@ -87,8 +87,7 @@ class _RootShell extends StatelessWidget {
           NavigationDestination(
               icon: Icon(Icons.videocam_outlined), label: 'Practice'),
           NavigationDestination(
-              icon: Icon(Icons.center_focus_strong_outlined),
-              label: 'Align'),
+              icon: Icon(Icons.center_focus_strong_outlined), label: 'Align'),
           NavigationDestination(
               icon: Icon(Icons.bar_chart_outlined), label: 'Stats'),
         ],
