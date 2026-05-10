@@ -1,0 +1,17 @@
+name: stats_engine
+description: Pure-Dart aggregations over PracticeSessions for the stats screen.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  core_api:
+    path: ../core_api
+  metadata_store_api:
+    path: ../metadata_store_api
+  meta: ^1.12.0
+
+dev_dependencies:
+  test: ^1.25.0

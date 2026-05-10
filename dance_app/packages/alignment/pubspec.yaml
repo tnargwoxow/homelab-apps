@@ -1,0 +1,15 @@
+name: alignment
+description: Pure-Dart geometric alignment of two video frames from N point pairs.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ">=3.4.0 <4.0.0"
+
+dependencies:
+  core_api:
+    path: ../core_api
+  meta: ^1.12.0
+
+dev_dependencies:
+  test: ^1.25.0

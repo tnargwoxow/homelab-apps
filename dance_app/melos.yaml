@@ -1,0 +1,23 @@
+name: dance_app
+repository: https://github.com/tnargwoxow/homelab-apps
+
+packages:
+  - app
+  - packages/*
+
+command:
+  bootstrap:
+    runPubGetInParallel: true
+
+scripts:
+  analyze:
+    description: Run dart analyze across all packages.
+    run: melos exec -c 1 -- "dart analyze --fatal-infos"
+
+  test:
+    description: Run dart test across all packages that have tests.
+    run: melos exec -c 1 --dir-exists="test" -- "dart test"
+
+  format-check:
+    description: Verify formatting.
+    run: melos exec -c 1 -- "dart format --output=none --set-exit-if-changed ."
