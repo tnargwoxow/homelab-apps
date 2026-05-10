@@ -507,6 +507,36 @@ def discipline(pet: Pet) -> tuple[Pet, str]:
     return pet, f"disciplined ({int(pet.discipline)}%)"
 
 
+SURPRISE_EVENTS: list[tuple[str, str, dict]] = [
+    # (key, message, effect-payload)
+    ("found_coin",       "🪙 found a shiny coin!",         {"happy": +0.5}),
+    ("butterfly",        "🦋 a butterfly!",                  {"happy": +0.4}),
+    ("rainbow",          "🌈 saw a rainbow!",                {"happy": +0.6}),
+    ("hug",              "🤗 someone gave a hug!",           {"happy": +0.7}),
+    ("treat",            "🎁 a mystery treat!",              {"hunger": +0.5, "happy": +0.3}),
+    ("nap_dream",        "💭 sweet dream!",                  {"happy": +0.3}),
+    ("stomach",          "😣 small tummy ache",              {"happy": -0.4}),
+    ("hiccup",           "*hic!* hiccups",                   {"happy": -0.1}),
+    ("song",             "🎵 hummed a tune",                 {"happy": +0.5}),
+    ("trip",             "tripped over nothing",             {"happy": -0.2}),
+]
+
+
+def maybe_surprise(pet: Pet, rng: random.Random) -> tuple[Pet, dict | None]:
+    """Roll for a random surprise event. Called from the tick loop.
+    ~0.001/min ≈ once every ~17 hours of awake time."""
+    if not pet.alive or pet.is_sleeping or pet.life_stage == "egg":
+        return pet, None
+    if rng.random() >= 0.0008:
+        return pet, None
+    key, msg, effect = rng.choice(SURPRISE_EVENTS)
+    if effect.get("happy"):
+        pet.happiness = clamp(pet.happiness + effect["happy"], 0, MAX_HEARTS)
+    if effect.get("hunger"):
+        pet.hunger = clamp(pet.hunger + effect["hunger"], 0, MAX_HEARTS)
+    return pet, {"key": key, "msg": msg, "effect": effect}
+
+
 def lights(pet: Pet) -> tuple[Pet, str]:
     pet.lights_off = not pet.lights_off
     if pet.lights_off and pet.is_sleeping:

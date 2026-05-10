@@ -199,6 +199,11 @@ const els = {
   hudClock:  document.getElementById("hud-clock"),
   soundBtn:  document.getElementById("sound-btn"),
   confetti:  document.getElementById("confetti"),
+  speech:    document.getElementById("speech"),
+  device:    document.querySelector(".device"),
+  lineageModal: document.getElementById("lineage-modal"),
+  lineageBody:  document.getElementById("lineage-body"),
+  lineageClose: document.getElementById("lineage-close"),
   exportBtn: document.getElementById("export-btn"),
   importBtn: document.getElementById("import-btn"),
   importFile:document.getElementById("import-file"),
@@ -435,13 +440,107 @@ function pulse(cls) {
   setTimeout(() => els.pet.classList.remove(cls), 800);
 }
 
+// === Speech bubble ===
+let speechTimer = null;
+function showSpeech(text, durationMs = 3200) {
+  if (!text) return;
+  els.speech.textContent = text;
+  els.speech.hidden = false;
+  void els.speech.offsetWidth;
+  els.speech.classList.add("show");
+  if (speechTimer) clearTimeout(speechTimer);
+  speechTimer = setTimeout(() => {
+    els.speech.classList.remove("show");
+    setTimeout(() => { els.speech.hidden = true; }, 220);
+  }, durationMs);
+}
+
+// Periodically pull a personality line and show it.
+async function chatterTick() {
+  if (!lastState || !lastState.alive) return;
+  // Don't talk over an existing bubble.
+  if (els.speech.classList.contains("show")) return;
+  try {
+    const r = await api("/api/say");
+    if (r?.voice) showSpeech(r.voice);
+  } catch (e) {}
+}
+
+// === Random idle behaviors ===
+const IDLE_MOVES = ["peek-left", "peek-right", "spin", "jump"];
+function maybeIdleBehavior() {
+  if (!lastState || !lastState.alive || lastState.is_sleeping || lastState.life_stage === "egg") return;
+  if (Math.random() < 0.35) {
+    const move = IDLE_MOVES[Math.floor(Math.random() * IDLE_MOVES.length)];
+    pulse(move);
+  }
+}
+
+// === Day/night background ===
+function applyDayNight(hour) {
+  const c = els.device.classList;
+  c.remove("dawn", "day", "dusk", "night");
+  if (hour >= 5 && hour < 8)        c.add("dawn");
+  else if (hour >= 8 && hour < 18)  c.add("day");
+  else if (hour >= 18 && hour < 20) c.add("dusk");
+  else                               c.add("night");
+}
+
+// === Tap-to-pet ===
+let lastPetTap = 0;
+function spawnHeart() {
+  const heart = document.createElement("span");
+  heart.textContent = "♥";
+  heart.style.position = "absolute";
+  heart.style.left = (40 + Math.random() * 20) + "%";
+  heart.style.top = "40%";
+  heart.style.fontSize = "18px";
+  heart.style.color = "#6b2020";
+  heart.style.zIndex = "5";
+  heart.style.pointerEvents = "none";
+  heart.style.animation = "floaty-up 1s ease-out 1";
+  document.getElementById("stage").appendChild(heart);
+  setTimeout(() => heart.remove(), 1100);
+}
+
+els.pet.addEventListener("click", async () => {
+  const now = Date.now();
+  if (now - lastPetTap < 600) return;  // basic rate-limit
+  lastPetTap = now;
+  if (!lastState || !lastState.alive) return;
+  if (lastState.life_stage === "egg") return openEggModal();
+  if (lastState.is_sleeping) {
+    showSpeech("zzz...");
+    return;
+  }
+  vibrate(8);
+  spawnHeart();
+  SoundEngine.play("click");
+  try {
+    const res = await api("/api/pet/pet", "POST");
+    if (res?.pet) {
+      render(res.pet, "");
+      if (res.voice) showSpeech(res.voice, 1800);
+    }
+  } catch (e) {}
+});
+
 function triggerLevelUp() {
   pulse("levelup");
-  // Confetti burst.
-  const emoji = ["✨", "🎉", "⭐", "🌟", "💫"];
+  spawnConfetti(["✨", "🎉", "⭐", "🌟", "💫"], 12);
+}
+
+function triggerBirthday() {
+  pulse("celebrate");
+  spawnConfetti(["🎂", "🎁", "🎈", "🥳"], 14);
+  SoundEngine.play("levelUp");
+  showSpeech("🎂 happy birthday! 🎂", 3500);
+}
+
+function spawnConfetti(emoji, count = 12) {
   els.confetti.hidden = false;
   els.confetti.innerHTML = "";
-  for (let i = 0; i < 12; i++) {
+  for (let i = 0; i < count; i++) {
     const s = document.createElement("span");
     s.textContent = emoji[i % emoji.length];
     s.style.left = (10 + Math.random() * 80) + "%";
@@ -449,7 +548,7 @@ function triggerLevelUp() {
     s.style.animationDelay = (Math.random() * 0.3) + "s";
     els.confetti.appendChild(s);
   }
-  setTimeout(() => { els.confetti.hidden = true; els.confetti.innerHTML = ""; }, 1700);
+  setTimeout(() => { els.confetti.hidden = true; els.confetti.innerHTML = ""; }, 1800);
 }
 
 function render(pet, msg) {
@@ -472,10 +571,17 @@ function render(pet, msg) {
     if (lastState.life_stage === "egg") {
       SoundEngine.play("hatch");
       triggerLevelUp();
+      showSpeech("hello world!", 3000);
     } else {
       SoundEngine.play("levelUp");
       triggerLevelUp();
+      showSpeech(`i'm a ${pet.character}!`, 3500);
     }
+  }
+
+  // Birthday celebration on age_years bump.
+  if (lastState && pet.alive && pet.age_years > lastState.age_years) {
+    triggerBirthday();
   }
 
   // Death detection — fire once per death.
@@ -861,6 +967,7 @@ const ACTIONS = {
   },
   "status":     () => { SoundEngine.play("click"); openStatusModal(); return null; },
   "achievements": () => { SoundEngine.play("click"); openAchievementsModal(); return null; },
+  "lineage": () => { SoundEngine.play("click"); openLineageModal(); return null; },
   "reset":      () => {
     if (!confirm("Hatch a new egg? Current pet will be lost.")) return null;
     const name = (prompt("Name your new pet:", "Tama") || "Tama").trim().slice(0, 16) || "Tama";
@@ -880,6 +987,7 @@ document.querySelectorAll(".pad .btn, .pad-2 .btn").forEach(b => {
       if (res.pet) {
         render(res.pet, res.msg);
         handleAchievements(res.achievements);
+        if (res.voice) showSpeech(res.voice, 2400);
       }
       else if (res.id !== undefined) render(res);
     } catch (e) {
@@ -917,8 +1025,48 @@ async function refreshClock() {
     els.hudClock.title = c.offset_minutes
       ? `dev offset +${c.offset_minutes}m | sleep ${c.schedule.start}→${c.schedule.end}`
       : `sleep ${c.schedule.start}→${c.schedule.end}`;
+    applyDayNight(c.hour);
   } catch (e) {}
 }
+
+// === Lineage modal ===
+function fmtLifetime(min) {
+  if (min < 60) return `${min}m`;
+  const h = Math.floor(min / 60), m = min % 60;
+  if (h < 24) return `${h}h ${m}m`;
+  const d = Math.floor(h / 24), rh = h % 24;
+  return `${d}d ${rh}h`;
+}
+
+async function openLineageModal() {
+  els.lineageModal.hidden = false;
+  els.lineageBody.textContent = "loading...";
+  try {
+    const data = await api("/api/lineage");
+    els.lineageBody.innerHTML = "";
+    if (!data.lineage?.length) {
+      els.lineageBody.innerHTML = '<div style="text-align:center;padding:14px">no past generations yet</div>';
+      return;
+    }
+    for (const r of data.lineage) {
+      const row = document.createElement("div");
+      row.className = "gen-row";
+      row.innerHTML = `
+        <span class="gen-num">gen ${r.generation}</span>
+        <div class="info">
+          <b>${r.name}</b> the <span class="stage">${r.character}</span><br>
+          peaked at ${r.peak_stage} — lived ${fmtLifetime(r.lifetime_min)}, ${r.care_mistakes} mistakes
+        </div>`;
+      els.lineageBody.appendChild(row);
+    }
+  } catch (e) {
+    els.lineageBody.textContent = "couldn't load";
+  }
+}
+els.lineageClose.addEventListener("click", () => {
+  vibrate(10); SoundEngine.play("click");
+  els.lineageModal.hidden = true;
+});
 
 // === Save / Load / Portrait ===
 function downloadBlob(blob, filename) {
@@ -1067,3 +1215,40 @@ refresh();
 refreshClock();
 startPolling();
 setInterval(refreshClock, 30_000);
+
+// Personality chatter every 35-60s while visible
+let chatterInterval = null;
+function startChatter() {
+  stopChatter();
+  const period = 35_000 + Math.random() * 25_000;
+  chatterInterval = setTimeout(async () => {
+    await chatterTick();
+    startChatter();
+  }, period);
+}
+function stopChatter() { if (chatterInterval) { clearTimeout(chatterInterval); chatterInterval = null; } }
+startChatter();
+
+// Random idle behaviors every ~25s
+setInterval(maybeIdleBehavior, 25_000);
+
+// Surprise event poller — check the latest events for new "surprise"
+// entries since last refresh and show them.
+let lastEventId = 0;
+async function pollSurprises() {
+  try {
+    const r = await api("/api/events?limit=5");
+    if (!r?.events) return;
+    for (const ev of r.events.slice().reverse()) {
+      if (ev.id <= lastEventId) continue;
+      lastEventId = ev.id;
+      if (ev.kind === "surprise" && ev.payload?.msg) {
+        showSpeech(ev.payload.msg, 3500);
+        SoundEngine.play("achievement");
+        spawnConfetti(["✨"], 6);
+      }
+    }
+  } catch (e) {}
+}
+setInterval(pollSurprises, 8_000);
+pollSurprises();

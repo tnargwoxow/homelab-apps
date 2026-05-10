@@ -59,4 +59,8 @@ def tick_once(rng: random.Random) -> None:
         return
     game.apply_ticks(pet, int(ticks), rng, hour_fn=_hour_fn_from(pet.last_tick))
     pet.last_tick += int(ticks) * TICK_MS
+    # Surprise roll once per tick batch.
+    pet, surprise = game.maybe_surprise(pet, rng)
+    if surprise:
+        db.log_event(pet.id, "surprise", surprise)
     db.save_pet(pet)

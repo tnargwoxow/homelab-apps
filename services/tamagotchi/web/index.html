@@ -36,6 +36,7 @@
         </div>
 
         <div class="stage" id="stage">
+          <div class="speech" id="speech" hidden></div>
           <svg class="pet" id="pet" viewBox="0 0 32 32" aria-hidden="true"></svg>
           <div class="poops" id="poops"></div>
           <div class="zzz" id="zzz" aria-hidden="true">
@@ -111,6 +112,12 @@
           <button class="btn" id="death-close">hatch new egg</button>
         </div>
 
+        <div class="modal" id="lineage-modal" hidden>
+          <div class="modal-title">family album</div>
+          <div class="lineage-body" id="lineage-body"></div>
+          <button class="btn" id="lineage-close">close</button>
+        </div>
+
         <div class="achievement-toast" id="achievement-toast" hidden></div>
       </div>
     </header>
@@ -128,6 +135,7 @@
 
     <section class="pad-2">
       <button class="btn" data-act="achievements">trophies</button>
+      <button class="btn" data-act="lineage">family</button>
       <button class="btn danger" data-act="reset">reset</button>
     </section>
 

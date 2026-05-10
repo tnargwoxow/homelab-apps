@@ -66,6 +66,18 @@ CREATE TABLE IF NOT EXISTS achievement (
     pet_id      INTEGER NOT NULL,
     generation  INTEGER NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS lineage (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    generation    INTEGER NOT NULL,
+    name          TEXT NOT NULL,
+    character     TEXT NOT NULL,
+    peak_stage    TEXT NOT NULL,
+    lifetime_min  INTEGER NOT NULL,
+    care_mistakes INTEGER NOT NULL,
+    born_at       INTEGER NOT NULL,
+    died_at       INTEGER NOT NULL
+);
 """
 
 
@@ -186,14 +198,62 @@ def reset_pet(now_ms: int, name: str = "Tama") -> Pet:
     assert _conn is not None
     prev_gen = 1
     with _lock:
-        row = _conn.execute("SELECT generation FROM pet WHERE id = 1").fetchone()
+        row = _conn.execute("SELECT * FROM pet WHERE id = 1").fetchone()
         if row is not None:
+            # Snapshot prior life to lineage so it survives the reset.
+            _snapshot_lineage(row, now_ms)
             prev_gen = (row["generation"] or 1) + 1
         _conn.execute("DELETE FROM pet WHERE id = 1")
     pet = new_pet(now_ms, name=name, generation=prev_gen)
     _insert_pet(pet, now_ms)
     log_event(pet.id, "hatched", {"name": pet.name, "generation": pet.generation}, ts=now_ms)
     return pet
+
+
+def _snapshot_lineage(row: sqlite3.Row, now_ms: int) -> None:
+    assert _conn is not None
+    lifetime_min = int(row["age_minutes"] or 0)
+    with _lock:
+        _conn.execute(
+            """
+            INSERT INTO lineage (
+                generation, name, character, peak_stage,
+                lifetime_min, care_mistakes, born_at, died_at
+            ) VALUES (?,?,?,?,?,?,?,?)
+            """,
+            (
+                row["generation"] or 1,
+                row["name"] or "Tama",
+                row["character"] or row["life_stage"] or "egg",
+                row["life_stage"] or "egg",
+                lifetime_min,
+                int(row["care_mistakes"] or 0),
+                row["born_at"] or now_ms,
+                now_ms,
+            ),
+        )
+
+
+def list_lineage() -> list[dict]:
+    assert _conn is not None
+    with _lock:
+        rows = _conn.execute(
+            "SELECT * FROM lineage ORDER BY generation DESC LIMIT 50"
+        ).fetchall()
+    return [
+        {
+            "id": r["id"],
+            "generation": r["generation"],
+            "name": r["name"],
+            "character": r["character"],
+            "peak_stage": r["peak_stage"],
+            "lifetime_min": r["lifetime_min"],
+            "care_mistakes": r["care_mistakes"],
+            "born_at": r["born_at"],
+            "died_at": r["died_at"],
+        }
+        for r in rows
+    ]
 
 
 def _insert_pet(pet: Pet, now_ms: int) -> None:

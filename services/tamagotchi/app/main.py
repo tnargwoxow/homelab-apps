@@ -15,7 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from app import clock, db, game, tick
+from app import clock, db, game, personalities, tick
 
 logging.basicConfig(
     level=logging.INFO,
@@ -168,7 +168,12 @@ def post_feed(body: FeedBody) -> dict:
     db.save_pet(pet)
     db.log_event(pet.id, "feed", {"kind": body.kind, "msg": msg})
     achievements = _check_achievements(pet, "feed", {"kind": body.kind})
-    return {"pet": pet.to_dict(), "msg": msg, "achievements": achievements}
+    voice_key = (
+        "feed_meal_full" if "refused" in msg
+        else f"feed_{body.kind}"
+    )
+    voice = personalities.reaction(voice_key, pet.character, _rng)
+    return {"pet": pet.to_dict(), "msg": msg, "voice": voice, "achievements": achievements}
 
 
 @app.post("/api/play/round")
@@ -193,7 +198,9 @@ def post_play_finish(body: PlayFinishBody) -> dict:
     db.save_pet(pet)
     db.log_event(pet.id, "play_finish", {"wins": body.wins, "msg": msg})
     achievements = _check_achievements(pet, "play_finish", {"wins": body.wins})
-    return {"pet": pet.to_dict(), "msg": msg, "achievements": achievements}
+    voice_key = "play_win" if body.wins >= 3 else "play_loss"
+    voice = personalities.reaction(voice_key, pet.character, _rng)
+    return {"pet": pet.to_dict(), "msg": msg, "voice": voice, "achievements": achievements}
 
 
 @app.post("/api/clean")
@@ -203,7 +210,8 @@ def post_clean() -> dict:
     db.save_pet(pet)
     db.log_event(pet.id, "clean", {"msg": msg})
     achievements = _check_achievements(pet, "clean")
-    return {"pet": pet.to_dict(), "msg": msg, "achievements": achievements}
+    voice = personalities.reaction("clean", pet.character, _rng)
+    return {"pet": pet.to_dict(), "msg": msg, "voice": voice, "achievements": achievements}
 
 
 @app.post("/api/heal")
@@ -213,7 +221,8 @@ def post_heal() -> dict:
     db.save_pet(pet)
     db.log_event(pet.id, "heal", {"msg": msg})
     achievements = _check_achievements(pet, "heal")
-    return {"pet": pet.to_dict(), "msg": msg, "achievements": achievements}
+    voice = personalities.reaction("heal", pet.character, _rng)
+    return {"pet": pet.to_dict(), "msg": msg, "voice": voice, "achievements": achievements}
 
 
 @app.post("/api/discipline")
@@ -224,7 +233,11 @@ def post_discipline() -> dict:
     db.log_event(pet.id, "discipline", {"msg": msg})
     kind = "scold_false_alarm" if "false alarm" in msg else "scold_other"
     achievements = _check_achievements(pet, "discipline", {"kind": kind})
-    return {"pet": pet.to_dict(), "msg": msg, "achievements": achievements}
+    voice_key = "scold_false" if "false alarm" in msg else (
+        "scold_real" if "real need" in msg else "scold_false"
+    )
+    voice = personalities.reaction(voice_key, pet.character, _rng)
+    return {"pet": pet.to_dict(), "msg": msg, "voice": voice, "achievements": achievements}
 
 
 @app.post("/api/lights")
@@ -233,7 +246,51 @@ def post_lights() -> dict:
     pet, msg = game.lights(pet)
     db.save_pet(pet)
     db.log_event(pet.id, "lights", {"msg": msg})
-    return {"pet": pet.to_dict(), "msg": msg}
+    voice_key = "lights_off" if pet.lights_off else "lights_on"
+    voice = personalities.reaction(voice_key, pet.character, _rng)
+    return {"pet": pet.to_dict(), "msg": msg, "voice": voice}
+
+
+class PetActionBody(BaseModel):
+    pass
+
+
+@app.post("/api/pet/pet")
+def post_pet_pet() -> dict:
+    """Tap-to-pet. Bumps happiness slightly, returns a chirpy voice line.
+    No persistent cooldown — frontend rate-limits via local timer."""
+    pet = _settle(db.get_or_create_pet(_now_ms()))
+    if not pet.alive or pet.is_sleeping or pet.life_stage == "egg":
+        return {"pet": pet.to_dict(), "msg": "", "voice": "", "petted": False}
+    pet.happiness = game.clamp(pet.happiness + 0.15, 0, game.MAX_HEARTS)
+    db.save_pet(pet)
+    db.log_event(pet.id, "petted", {})
+    voice = personalities.idle(pet.character, "calling", _rng) or "*purrs*"
+    return {"pet": pet.to_dict(), "msg": "you petted it", "voice": voice, "petted": True}
+
+
+@app.get("/api/say")
+def get_say() -> dict:
+    """Random idle chatter line, picked based on the pet's current mood."""
+    pet = db.get_or_create_pet(_now_ms())
+    state = None
+    if not pet.alive:
+        line = personalities.reaction("death", pet.character, _rng)
+        return {"voice": line, "state": "dead"}
+    if pet.is_sleeping:
+        state = "asleep"
+    elif pet.is_sick:
+        state = "sick"
+    elif pet.hunger <= 1:
+        state = "hungry"
+    elif pet.happiness <= 1:
+        state = "sad"
+    elif pet.poop_count > 0:
+        state = "dirty"
+    elif pet.wants_attention:
+        state = "calling"
+    line = personalities.idle(pet.character, state, _rng)
+    return {"voice": line, "state": state, "character": pet.character}
 
 
 @app.post("/api/tap-egg")
@@ -297,6 +354,12 @@ def post_import(body: ImportBody) -> dict:
     db.save_pet(incoming)
     db.log_event(incoming.id, "imported", {"name": incoming.name})
     return {"pet": incoming.to_dict(), "msg": "imported"}
+
+
+@app.get("/api/lineage")
+def get_lineage() -> dict:
+    """Past generations in this household."""
+    return {"lineage": db.list_lineage()}
 
 
 @app.get("/api/achievements")
