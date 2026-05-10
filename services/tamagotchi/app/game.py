@@ -39,17 +39,20 @@ STAGE_THRESHOLDS = [
 MAX_CATCHUP_TICKS = 60 * 24 * 7
 
 MAX_HEARTS = 4.0
-HUNGER_MINUTES_TO_EMPTY = 120  # 2 real hours from full to 0
-HAPPY_MINUTES_TO_EMPTY = 180   # 3 real hours from full to 0
+# Canonical pacing: a few feedings per day, not every two hours.
+# Pet awake ~13h/day, so hunger drains about 6 hearts of decay across a
+# waking day at this rate — comfortable with 2-3 meals.
+HUNGER_MINUTES_TO_EMPTY = 600  # 10 real hours from full to 0 (~2.5h/heart)
+HAPPY_MINUTES_TO_EMPTY = 900   # 15 real hours from full to 0 (~3.75h/heart)
 HUNGER_DECAY_PER_MIN = MAX_HEARTS / HUNGER_MINUTES_TO_EMPTY
 HAPPY_DECAY_PER_MIN  = MAX_HEARTS / HAPPY_MINUTES_TO_EMPTY
 
-NEED_PATIENCE_MIN = 15        # ignored need = care mistake
+NEED_PATIENCE_MIN = 30        # ignored need = care mistake
 LIGHTS_GRACE_MIN = 5          # lights must go off within 5 min of bedtime
-POOP_PATIENCE_MIN = 60        # uncleaned poop = sickness/mistake risk
+POOP_PATIENCE_MIN = 90        # uncleaned poop = sickness/mistake risk
 MISBEHAVE_TIMEOUT_MIN = 5     # misbehaviour auto-clears
 MISBEHAVE_PROB_PER_MIN = 0.001  # ~1 per 1000 minutes
-SICKNESS_FROM_POOP_PROB = 0.01  # per minute past POOP_PATIENCE_MIN
+SICKNESS_FROM_POOP_PROB = 0.005  # per minute past POOP_PATIENCE_MIN
 
 SIM_DAY_OFFSET_MIN = 9 * 60   # pet hatches at simulated 9am, awake
 
@@ -201,10 +204,12 @@ def _handle_sleep_transitions(pet: Pet) -> None:
         pet.is_sleeping = True
         pet.sleep_start_min = pet.age_minutes
         pet.lights_late_warned = False
-        # Sleeping clears any outstanding misbehaviour without penalty.
-        if pet.wants_attention and not pet.attention_real:
-            pet.wants_attention = False
-            pet.attention_started_min = -1
+        # Sleeping clears outstanding attention calls — pet can't be
+        # "ignored" while asleep. Real needs that persist until morning
+        # will re-trigger on wake.
+        pet.wants_attention = False
+        pet.attention_real = False
+        pet.attention_started_min = -1
     elif not should_sleep and pet.is_sleeping:
         # Wake up.
         pet.is_sleeping = False
@@ -242,8 +247,9 @@ def _handle_poop_sickness(pet: Pet, rng: random.Random) -> None:
 
 
 def _maybe_schedule_sickness(pet: Pet, rng: random.Random) -> None:
-    """Each life stage (post-egg) gets one scheduled sickness episode."""
-    if pet.is_sick or pet.life_stage in ("egg", "dead"):
+    """Each life stage (post-baby) gets one scheduled sickness episode.
+    Skipping baby keeps the early game forgiving."""
+    if pet.is_sick or pet.life_stage in ("egg", "baby", "dead"):
         return
     if pet.next_sickness_min == -1:
         # Schedule somewhere in the back half of the current stage.
@@ -277,11 +283,16 @@ def _life_stage_transition(pet: Pet) -> None:
 def _maybe_die(pet: Pet, rng: random.Random) -> None:
     if not pet.alive:
         return
-    # Death from chronic starvation.
-    if pet.hunger <= 0 and rng.random() < 0.005:
-        pet.alive = False
-    # Death from untreated illness.
-    elif pet.is_sick and rng.random() < 0.001:
+    # Death from chronic starvation. Pet must have been at hunger=0 for a
+    # while (real-need call must have already been raised >= 60 min ago)
+    # before death rolls become possible. Tunable harshness: ~25% chance
+    # of dying per hour after that point.
+    if pet.hunger <= 0 and pet.attention_real and pet.attention_started_min >= 0:
+        if pet.age_minutes - pet.attention_started_min >= 60:
+            if rng.random() < 0.005:
+                pet.alive = False
+    # Death from sustained illness — has to ignore for many hours.
+    elif pet.is_sick and rng.random() < 0.0001:
         pet.alive = False
     # Death from old age, accelerated by care mistakes.
     elif pet.life_stage == "senior":
@@ -309,10 +320,15 @@ def apply_ticks(pet: Pet, ticks: int, rng: random.Random) -> Pet:
         pet.age_minutes += 1
         _handle_sleep_transitions(pet)
 
-        sleep_factor = 0.25 if pet.is_sleeping else 1.0
-        pet.hunger    = clamp(pet.hunger - HUNGER_DECAY_PER_MIN * sleep_factor, 0, MAX_HEARTS)
-        pet.happiness = clamp(pet.happiness - HAPPY_DECAY_PER_MIN * sleep_factor, 0, MAX_HEARTS)
-        pet.weight    = clamp(pet.weight - 0.005 * sleep_factor, 1, 99)
+        # Sleep effectively pauses decay. Hunger trickles down very
+        # slowly (5% rate) so a long night doesn't bottom you out;
+        # happiness doesn't decay at all while asleep — sleep is restful.
+        if pet.is_sleeping:
+            pet.hunger = clamp(pet.hunger - HUNGER_DECAY_PER_MIN * 0.05, 0, MAX_HEARTS)
+        else:
+            pet.hunger    = clamp(pet.hunger - HUNGER_DECAY_PER_MIN, 0, MAX_HEARTS)
+            pet.happiness = clamp(pet.happiness - HAPPY_DECAY_PER_MIN, 0, MAX_HEARTS)
+            pet.weight    = clamp(pet.weight - 0.005, 1, 99)
 
         if not pet.is_sleeping and pet.weight > 5 and rng.random() < 0.02:
             pet.poop_count = min(pet.poop_count + 1, 9)
@@ -323,9 +339,11 @@ def apply_ticks(pet: Pet, ticks: int, rng: random.Random) -> Pet:
         _life_stage_transition(pet)
         _maybe_call_for_attention(pet, rng)
         _expire_misbehaviour(pet)
-        _accrue_need_mistakes(pet)
-
-        _maybe_die(pet, rng)
+        # Sleeping pets can't be "ignored" — defer mistake accrual until
+        # they wake up. Same logic for death rolls.
+        if not pet.is_sleeping:
+            _accrue_need_mistakes(pet)
+            _maybe_die(pet, rng)
 
     return pet
 
@@ -356,24 +374,20 @@ def feed(pet: Pet, kind: str) -> tuple[Pet, str]:
     return pet, f"unknown food: {kind}"
 
 
-def play_round(pet: Pet, guesses: list[str], rng: random.Random) -> tuple[Pet, dict, str]:
-    """Five rounds of left/right. Win >=3 = +1 happy heart."""
+def play_can_start(pet: Pet) -> tuple[bool, str]:
     if not pet.alive:
-        return pet, {"started": False}, "pet is no longer with us"
+        return False, "pet is no longer with us"
     if pet.is_sleeping:
-        return pet, {"started": False}, "shh, pet is sleeping"
-    if len(guesses) != 5 or not all(g in ("left", "right") for g in guesses):
-        return pet, {"started": False}, "need 5 guesses of left/right"
+        return False, "shh, pet is sleeping"
+    return True, ""
 
-    rounds = []
-    wins = 0
-    for g in guesses:
-        d = rng.choice(["left", "right"])
-        won = g == d
-        if won:
-            wins += 1
-        rounds.append({"guess": g, "direction": d, "won": won})
 
+def play_finish(pet: Pet, wins: int) -> tuple[Pet, str]:
+    """Apply the outcome of a 5-round left/right game."""
+    if not pet.alive or pet.is_sleeping:
+        # The frontend shouldn't reach this, but be defensive.
+        return pet, "pet can't play right now"
+    wins = max(0, min(5, int(wins)))
     pet.weight = clamp(pet.weight - 0.4, 1, 99)
     if wins >= 3:
         pet.happiness = clamp(pet.happiness + 1.0, 0, MAX_HEARTS)
@@ -382,7 +396,7 @@ def play_round(pet: Pet, guesses: list[str], rng: random.Random) -> tuple[Pet, d
         pet.happiness = clamp(pet.happiness - 0.3, 0, MAX_HEARTS)
         msg = f"only {wins}/5 — pet sulks"
     _clear_attention_if_satisfied(pet)
-    return pet, {"started": True, "wins": wins, "rounds": rounds}, msg
+    return pet, msg
 
 
 def clean(pet: Pet) -> tuple[Pet, str]:

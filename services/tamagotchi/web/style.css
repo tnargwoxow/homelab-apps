@@ -373,17 +373,46 @@ body {
 }
 .modal-pet {
   display: grid;
+  grid-template-rows: 28px auto 18px;
   place-items: center;
+  gap: 4px;
+  position: relative;
+}
+.look-arrow {
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--gb-darkest);
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.2s ease;
+  font-family: ui-monospace, monospace;
 }
 .play-pet {
-  width: 80px;
-  height: 80px;
+  width: 90px;
+  height: 90px;
   image-rendering: pixelated;
-  transform-origin: center;
-  transition: transform 0.15s ease;
+  shape-rendering: crispEdges;
 }
-.play-pet[data-look="left"]  { transform: scaleX(-1); }
-.play-pet[data-look="right"] { transform: scaleX(1); }
+.play-pet.thinking {
+  animation: thinking-bounce 0.5s ease-in-out 1;
+}
+@keyframes thinking-bounce {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-6px); }
+}
+.play-feedback {
+  font-size: 12px;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  height: 18px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.play-feedback.win  { color: var(--gb-darkest); opacity: 1; }
+.play-feedback.loss { color: #6b2020; opacity: 1; }
 .modal-buttons {
   display: flex;
   gap: 16px;

@@ -1,3 +1,84 @@
+// === play-mode sprites ===
+// Two explicit side-profile sprites. No CSS mirror — keeps the orientation
+// reading correct regardless of any other transform.
+//
+// Looking LEFT: snout sticks out on the left, single eye on left half,
+// mouth on left half, tail-bump on right.
+const PLAY_SPRITE_LEFT = `
+  <g fill="#0f380f">
+    <rect x="6"  y="8"  width="20" height="16"/>
+    <rect x="8"  y="6"  width="16" height="2"/>
+    <rect x="8"  y="24" width="16" height="2"/>
+    <rect x="4"  y="10" width="2"  height="12"/>
+    <rect x="26" y="10" width="2"  height="12"/>
+    <rect x="2"  y="13" width="2"  height="6"/>
+    <rect x="0"  y="15" width="2"  height="2"/>
+    <rect x="28" y="14" width="2"  height="4"/>
+    <rect x="9"  y="3"  width="2"  height="3"/>
+    <rect x="13" y="4"  width="2"  height="2"/>
+    <rect x="8"  y="26" width="3"  height="3"/>
+    <rect x="14" y="26" width="3"  height="3"/>
+    <rect x="20" y="26" width="3"  height="3"/>
+  </g>
+  <g fill="#9bbc0f">
+    <rect x="6"  y="10" width="20" height="14"/>
+    <rect x="8"  y="8"  width="16" height="2"/>
+  </g>
+  <g fill="#0f380f">
+    <rect x="7"  y="12" width="3"  height="4"/>
+    <rect x="5"  y="19" width="5"  height="1"/>
+    <rect x="6"  y="20" width="3"  height="1"/>
+  </g>`;
+
+// Looking RIGHT: hand-mirrored coordinates — snout on the right, single
+// eye on the right half, mouth on the right, tail-bump on the left.
+const PLAY_SPRITE_RIGHT = `
+  <g fill="#0f380f">
+    <rect x="6"  y="8"  width="20" height="16"/>
+    <rect x="8"  y="6"  width="16" height="2"/>
+    <rect x="8"  y="24" width="16" height="2"/>
+    <rect x="4"  y="10" width="2"  height="12"/>
+    <rect x="26" y="10" width="2"  height="12"/>
+    <rect x="28" y="13" width="2"  height="6"/>
+    <rect x="30" y="15" width="2"  height="2"/>
+    <rect x="2"  y="14" width="2"  height="4"/>
+    <rect x="19" y="3"  width="2"  height="3"/>
+    <rect x="15" y="4"  width="2"  height="2"/>
+    <rect x="9"  y="26" width="3"  height="3"/>
+    <rect x="15" y="26" width="3"  height="3"/>
+    <rect x="21" y="26" width="3"  height="3"/>
+  </g>
+  <g fill="#9bbc0f">
+    <rect x="6"  y="10" width="20" height="14"/>
+    <rect x="8"  y="8"  width="16" height="2"/>
+  </g>
+  <g fill="#0f380f">
+    <rect x="22" y="12" width="3"  height="4"/>
+    <rect x="22" y="19" width="5"  height="1"/>
+    <rect x="23" y="20" width="3"  height="1"/>
+  </g>`;
+
+// Neutral: symmetric, both eyes centered, no snout/tail. Shown before
+// the user has guessed for the round.
+const PLAY_SPRITE_NEUTRAL = `
+  <g fill="#0f380f">
+    <rect x="7"  y="7"  width="18" height="18"/>
+    <rect x="5"  y="9"  width="2"  height="14"/>
+    <rect x="25" y="9"  width="2"  height="14"/>
+    <rect x="9"  y="5"  width="2"  height="2"/>
+    <rect x="21" y="5"  width="2"  height="2"/>
+    <rect x="9"  y="25" width="3"  height="3"/>
+    <rect x="20" y="25" width="3"  height="3"/>
+  </g>
+  <g fill="#9bbc0f">
+    <rect x="9"  y="9"  width="14" height="14"/>
+  </g>
+  <g fill="#0f380f">
+    <rect x="12" y="13" width="2"  height="3"/>
+    <rect x="18" y="13" width="2"  height="3"/>
+    <rect x="13" y="19" width="6"  height="1"/>
+  </g>`;
+
 // === sprite definitions ===
 const SPRITES = {
   egg: `
@@ -126,6 +207,8 @@ const els = {
   playTitle: document.getElementById("play-title"),
   playPet:   document.getElementById("play-pet"),
   playTrack: document.getElementById("play-track"),
+  lookArrow: document.getElementById("look-arrow"),
+  playFeedback: document.getElementById("play-feedback"),
   statusModal: document.getElementById("status-modal"),
   statusBody:  document.getElementById("status-body"),
   statusClose: document.getElementById("status-close"),
@@ -261,15 +344,29 @@ async function refresh() {
   }
 }
 
-// === Play mini-game (5 rounds) ===
-function setPlayPet(stage) {
-  els.playPet.innerHTML = SPRITES[stage] || SPRITES.child;
+// === Play mini-game (5 rounds, per-round reveal) ===
+function setPlayPetNeutral() {
+  els.playPet.innerHTML = PLAY_SPRITE_NEUTRAL;
+  els.playPet.removeAttribute("data-look");
+}
+
+function setPlayPetLooking(direction) {
+  els.playPet.innerHTML = direction === "left" ? PLAY_SPRITE_LEFT : PLAY_SPRITE_RIGHT;
+  els.playPet.dataset.look = direction;
+}
+
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
 }
 
 async function openPlayModal() {
   if (!lastState || !lastState.alive || lastState.is_sleeping) return null;
-  setPlayPet(lastState.life_stage);
+
   els.playModal.hidden = false;
+  setPlayPetNeutral();
+  els.lookArrow.textContent = "?";
+  els.playFeedback.textContent = "";
+  els.playFeedback.className = "play-feedback";
   els.playTitle.textContent = "round 1 of 5";
   els.playTrack.innerHTML = "";
   for (let i = 0; i < 5; i++) {
@@ -278,52 +375,76 @@ async function openPlayModal() {
     els.playTrack.appendChild(pip);
   }
 
-  const guesses = [];
-  return new Promise(resolve => {
-    const handler = async (e) => {
-      const g = e.currentTarget.dataset.guess;
-      if (!g) return;
-      vibrate(15);
-      guesses.push(g);
+  const setBtns = (disabled) => {
+    els.playModal.querySelectorAll("[data-guess]").forEach(b => b.disabled = disabled);
+  };
 
-      // Local visual: pet looks the way it'll resolve to *after* server
-      // adjudicates. Animate before submitting for snappier UX.
-      els.playPet.dataset.look = g;
-      await new Promise(r => setTimeout(r, 280));
+  let wins = 0;
 
-      // Track pip placeholder until server tells us; show as neutral.
-      els.playTrack.children[guesses.length - 1].classList.add("pending");
+  for (let round = 0; round < 5; round++) {
+    els.playTitle.textContent = `round ${round + 1} of 5`;
+    els.lookArrow.textContent = "?";
+    els.playFeedback.textContent = "";
+    els.playFeedback.className = "play-feedback";
+    setPlayPetNeutral();
+    setBtns(false);
 
-      if (guesses.length < 5) {
-        els.playTitle.textContent = `round ${guesses.length + 1} of 5`;
-        return;
-      }
+    // Wait for guess.
+    const guess = await new Promise(resolve => {
+      const handler = (e) => {
+        const g = e.currentTarget.dataset.guess;
+        if (!g) return;
+        vibrate(15);
+        els.playModal.querySelectorAll("[data-guess]").forEach(b => b.removeEventListener("click", handler));
+        resolve(g);
+      };
+      els.playModal.querySelectorAll("[data-guess]").forEach(b => b.addEventListener("click", handler));
+    });
 
-      // Final round done — submit.
-      els.playModal.querySelectorAll("[data-guess]").forEach(b => b.removeEventListener("click", handler));
-      els.playTitle.textContent = "...";
-      try {
-        const res = await api("/api/play", "POST", { guesses });
-        // Animate result on track.
-        if (res.result?.rounds) {
-          res.result.rounds.forEach((r, i) => {
-            els.playTrack.children[i].classList.remove("pending");
-            els.playTrack.children[i].classList.add(r.won ? "win" : "loss");
-          });
-          els.playTitle.textContent = `${res.result.wins} / 5`;
-        }
-        await new Promise(r => setTimeout(r, 1200));
-        els.playModal.hidden = true;
-        if (res.result?.wins >= 3) pulse("celebrate");
-        else pulse("shake");
-        resolve(res);
-      } catch (e) {
-        els.playModal.hidden = true;
-        resolve(null);
-      }
-    };
-    els.playModal.querySelectorAll("[data-guess]").forEach(b => b.addEventListener("click", handler));
-  });
+    setBtns(true);
+
+    // Brief "thinking" beat — pet bobs in place.
+    els.playPet.classList.add("thinking");
+    await sleep(380);
+    els.playPet.classList.remove("thinking");
+
+    // Ask the server which way the pet looked this round.
+    let result;
+    try {
+      result = await api("/api/play/round", "POST", { guess });
+    } catch (e) {
+      els.playModal.hidden = true;
+      return null;
+    }
+
+    // Reveal: arrow + sprite flip.
+    setPlayPetLooking(result.direction);
+    els.lookArrow.textContent = result.direction === "left" ? "←" : "→";
+
+    // Show win/loss feedback.
+    const won = result.won;
+    if (won) wins++;
+    els.playFeedback.textContent = won ? "yes!" : "missed";
+    els.playFeedback.className = "play-feedback " + (won ? "win" : "loss");
+    const pip = els.playTrack.children[round];
+    pip.classList.add(won ? "win" : "loss");
+
+    await sleep(1100);
+  }
+
+  // Finish — apply the outcome on the server.
+  els.playTitle.textContent = `${wins} / 5`;
+  setBtns(true);
+  let res = null;
+  try {
+    res = await api("/api/play/finish", "POST", { wins });
+  } catch (e) {}
+
+  await sleep(900);
+  els.playModal.hidden = true;
+  if (wins >= 3) pulse("celebrate");
+  else pulse("shake");
+  return res;
 }
 
 // === Status panel ===

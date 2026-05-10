@@ -54,8 +54,12 @@ class FeedBody(BaseModel):
     kind: str = "meal"
 
 
-class PlayBody(BaseModel):
-    guesses: list[str] = []
+class PlayRoundBody(BaseModel):
+    guess: str = "left"
+
+
+class PlayFinishBody(BaseModel):
+    wins: int = 0
 
 
 class ResetBody(BaseModel):
@@ -99,13 +103,28 @@ def post_feed(body: FeedBody) -> dict:
     return {"pet": pet.to_dict(), "msg": msg}
 
 
-@app.post("/api/play")
-def post_play(body: PlayBody) -> dict:
+@app.post("/api/play/round")
+def post_play_round(body: PlayRoundBody) -> dict:
+    """Adjudicate ONE round. Stateless. Doesn't mutate the pet."""
+    if body.guess not in ("left", "right"):
+        raise HTTPException(status_code=400, detail="guess must be left or right")
+    pet = db.get_or_create_pet(_now_ms())
+    ok, msg = game.play_can_start(pet)
+    if not ok:
+        raise HTTPException(status_code=409, detail=msg)
+    direction = _rng.choice(["left", "right"])
+    won = direction == body.guess
+    return {"direction": direction, "won": won}
+
+
+@app.post("/api/play/finish")
+def post_play_finish(body: PlayFinishBody) -> dict:
+    """Apply the outcome of a 5-round game. Body: {wins: int 0..5}."""
     pet = _settle(db.get_or_create_pet(_now_ms()))
-    pet, result, msg = game.play_round(pet, body.guesses, _rng)
+    pet, msg = game.play_finish(pet, body.wins)
     db.save_pet(pet)
-    db.log_event(pet.id, "play", {"guesses": body.guesses, **result, "msg": msg})
-    return {"pet": pet.to_dict(), "msg": msg, "result": result}
+    db.log_event(pet.id, "play_finish", {"wins": body.wins, "msg": msg})
+    return {"pet": pet.to_dict(), "msg": msg}
 
 
 @app.post("/api/clean")
