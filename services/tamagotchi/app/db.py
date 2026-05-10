@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS pet (
     generation               INTEGER NOT NULL DEFAULT 1,
     life_stage               TEXT NOT NULL,
     character                TEXT NOT NULL DEFAULT 'egg',
+    hunger_zero_minutes      INTEGER NOT NULL DEFAULT 0,
     hunger                   REAL NOT NULL,
     happiness                REAL NOT NULL,
     discipline               REAL NOT NULL,
@@ -95,6 +96,7 @@ _NEW_COLUMNS = [
     ("stage_started_min",      "INTEGER NOT NULL DEFAULT 0"),
     ("attention_started_min",  "INTEGER NOT NULL DEFAULT -1"),
     ("character",              "TEXT NOT NULL DEFAULT 'egg'"),
+    ("hunger_zero_minutes",    "INTEGER NOT NULL DEFAULT 0"),
 ]
 
 
@@ -149,6 +151,7 @@ def _row_to_pet(row: sqlite3.Row) -> Pet:
         wants_attention=bool(row["wants_attention"]),
         attention_real=bool(row["attention_real"]),
         attention_started_min=row["attention_started_min"],
+        hunger_zero_minutes=row["hunger_zero_minutes"] if "hunger_zero_minutes" in row.keys() else 0,
     )
 
 
@@ -178,6 +181,7 @@ def save_pet(pet: Pet) -> None:
                 is_sick=?, sick_doses_needed=?, next_sickness_min=?,
                 alive=?, care_mistakes=?, stage_care_mistakes=?, stage_started_min=?,
                 wants_attention=?, attention_real=?, attention_started_min=?,
+                hunger_zero_minutes=?,
                 updated_at=?
             WHERE id=?
             """,
@@ -189,6 +193,7 @@ def save_pet(pet: Pet) -> None:
                 int(pet.is_sick), pet.sick_doses_needed, pet.next_sickness_min,
                 int(pet.alive), pet.care_mistakes, pet.stage_care_mistakes, pet.stage_started_min,
                 int(pet.wants_attention), int(pet.attention_real), pet.attention_started_min,
+                pet.hunger_zero_minutes,
                 now, pet.id,
             ),
         )
@@ -268,8 +273,9 @@ def _insert_pet(pet: Pet, now_ms: int) -> None:
                 lights_late_warned, is_sick, sick_doses_needed, next_sickness_min,
                 alive, care_mistakes, stage_care_mistakes, stage_started_min,
                 wants_attention, attention_real, attention_started_min,
+                hunger_zero_minutes,
                 created_at, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 pet.id, pet.name, pet.born_at, pet.last_tick, pet.age_minutes, pet.age_years, pet.generation,
@@ -278,6 +284,7 @@ def _insert_pet(pet: Pet, now_ms: int) -> None:
                 int(pet.lights_late_warned), int(pet.is_sick), pet.sick_doses_needed, pet.next_sickness_min,
                 int(pet.alive), pet.care_mistakes, pet.stage_care_mistakes, pet.stage_started_min,
                 int(pet.wants_attention), int(pet.attention_real), pet.attention_started_min,
+                pet.hunger_zero_minutes,
                 now_ms, now_ms,
             ),
         )

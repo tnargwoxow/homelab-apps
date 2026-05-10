@@ -117,6 +117,11 @@ class Pet:
     attention_real: bool = False
     attention_started_min: int = -1
 
+    # Cumulative minutes the pet has been at hunger=0 (resets when fed).
+    # Death rolls fire after this passes a threshold — separate from the
+    # attention-call timer because that gets bumped by mistake accrual.
+    hunger_zero_minutes: int = 0
+
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -337,18 +342,16 @@ def _life_stage_transition(pet: Pet) -> None:
 def _maybe_die(pet: Pet, rng: random.Random) -> None:
     if not pet.alive:
         return
-    # Death from chronic starvation. Pet must have been at hunger=0 for a
-    # while (real-need call must have already been raised >= 60 min ago)
-    # before death rolls become possible. Tunable harshness: ~25% chance
-    # of dying per hour after that point.
-    if pet.hunger <= 0 and pet.attention_real and pet.attention_started_min >= 0:
-        if pet.age_minutes - pet.attention_started_min >= 60:
-            if rng.random() < 0.005:
-                pet.alive = False
-    # Death from sustained illness — has to ignore for many hours.
-    elif pet.is_sick and rng.random() < 0.0001:
+    # Starvation: after 60 min of hunger=0, ~1%/min chance of dying.
+    # Expected total time of total neglect to die = 10h decay + 1h grace
+    # + ~100 min of dying rolls ≈ 12-13 hours.
+    if pet.hunger_zero_minutes >= 60:
+        if rng.random() < 0.01:
+            pet.alive = False
+    # Untreated sickness: ~0.05%/min ≈ 3%/hour ≈ 50% per day if ignored.
+    elif pet.is_sick and rng.random() < 0.0005:
         pet.alive = False
-    # Death from old age, accelerated by care mistakes.
+    # Old age, accelerated by care mistakes.
     elif pet.life_stage == "senior":
         senior_max = 5760 + 1440 - pet.care_mistakes * 30
         if pet.age_minutes > senior_max and rng.random() < 0.01:
@@ -388,6 +391,12 @@ def apply_ticks(pet: Pet, ticks: int, rng: random.Random, hour_fn=None) -> Pet:
             pet.happiness = clamp(pet.happiness - HAPPY_DECAY_PER_MIN, 0, MAX_HEARTS)
             pet.weight    = clamp(pet.weight - 0.005, 1, 99)
 
+        # Track sustained starvation (separate from attention-call timer).
+        if pet.hunger <= 0:
+            pet.hunger_zero_minutes += 1
+        else:
+            pet.hunger_zero_minutes = 0
+
         if not pet.is_sleeping and pet.weight > 5 and rng.random() < 0.02:
             pet.poop_count = min(pet.poop_count + 1, 9)
 
@@ -421,12 +430,14 @@ def feed(pet: Pet, kind: str) -> tuple[Pet, str]:
             return pet, "pet refused — already full"
         pet.hunger = clamp(pet.hunger + 1.0, 0, MAX_HEARTS)
         pet.weight = clamp(pet.weight + 1.5, 1, 99)
+        pet.hunger_zero_minutes = 0
         _clear_attention_if_satisfied(pet)
         return pet, "fed a meal"
     if kind == "snack":
         pet.happiness = clamp(pet.happiness + 1.0, 0, MAX_HEARTS)
         pet.weight = clamp(pet.weight + 0.6, 1, 99)
         pet.hunger = clamp(pet.hunger + 0.2, 0, MAX_HEARTS)
+        pet.hunger_zero_minutes = 0
         _clear_attention_if_satisfied(pet)
         return pet, "fed a snack"
     return pet, f"unknown food: {kind}"
