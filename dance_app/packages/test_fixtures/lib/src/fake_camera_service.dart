@@ -58,7 +58,8 @@ class FakeCameraService implements CameraService {
     _recordingStart = null;
     _emit();
     return RecordingResult(
-      ref: const MediaRef(uri: 'fake://recording', sourceType: MediaSourceType.localFile),
+      ref: const MediaRef(
+          uri: 'fake://recording', sourceType: MediaSourceType.localFile),
       duration: DateTime.now().difference(start),
     );
   }
