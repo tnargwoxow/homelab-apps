@@ -34,6 +34,14 @@
           <div class="bar"><span>weight</span><div class="meter"><i id="bar-weight"></i></div></div>
         </div>
         <div class="ticker" id="ticker">welcome</div>
+
+        <div class="modal" id="play-modal" hidden>
+          <div class="modal-title">guess which way</div>
+          <div class="modal-buttons">
+            <button class="btn" data-guess="left">←</button>
+            <button class="btn" data-guess="right">→</button>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -46,6 +54,14 @@
       <button class="btn" data-act="discipline">scold</button>
       <button class="btn" data-act="lights">lights</button>
       <button class="btn danger" data-act="reset">reset</button>
+    </section>
+
+    <section class="dev-pad" id="dev-pad" hidden>
+      <span class="dev-label">FAST-FORWARD</span>
+      <button class="btn dev" data-ff="10">+10m</button>
+      <button class="btn dev" data-ff="60">+1h</button>
+      <button class="btn dev" data-ff="360">+6h</button>
+      <button class="btn dev" data-ff="1440">+1d</button>
     </section>
   </main>
 

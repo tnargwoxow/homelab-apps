@@ -42,6 +42,8 @@ class Pet:
     alive: bool = True
     care_mistakes: float = 0.0
     lights_off: bool = False
+    wants_attention: bool = False
+    attention_real: bool = False
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -78,6 +80,27 @@ def _is_sleep_hour(age_minutes: int, lights_off: bool) -> bool:
 
 def clamp(v: float, lo: float, hi: float) -> float:
     return max(lo, min(hi, v))
+
+
+def _has_real_need(pet: Pet) -> bool:
+    return pet.hunger > 70 or pet.happiness < 30 or pet.poop_count >= 2 or pet.is_sick
+
+
+def _maybe_call_for_attention(pet: Pet, rng: random.Random) -> None:
+    if pet.wants_attention or pet.is_sleeping or not pet.alive:
+        return
+    if _has_real_need(pet):
+        pet.wants_attention = True
+        pet.attention_real = True
+    elif rng.random() < 0.005:
+        pet.wants_attention = True
+        pet.attention_real = False
+
+
+def _clear_attention_if_satisfied(pet: Pet) -> None:
+    if pet.wants_attention and pet.attention_real and not _has_real_need(pet):
+        pet.wants_attention = False
+        pet.attention_real = False
 
 
 def apply_ticks(pet: Pet, ticks: int, rng: random.Random) -> Pet:
@@ -122,6 +145,11 @@ def apply_ticks(pet: Pet, ticks: int, rng: random.Random) -> Pet:
 
         if not pet.alive:
             pet.life_stage = "dead"
+            pet.wants_attention = False
+            pet.attention_real = False
+            break
+
+        _maybe_call_for_attention(pet, rng)
 
     return pet
 
@@ -137,6 +165,7 @@ def feed(pet: Pet, kind: str) -> tuple[Pet, str]:
             return pet, "pet refused — not hungry"
         pet.hunger = clamp(pet.hunger - 35, 0, 100)
         pet.weight = clamp(pet.weight + 1.5, 1, 99)
+        _clear_attention_if_satisfied(pet)
         return pet, "fed a meal"
     if kind == "snack":
         pet.happiness = clamp(pet.happiness + 12, 0, 100)
@@ -144,27 +173,37 @@ def feed(pet: Pet, kind: str) -> tuple[Pet, str]:
         if pet.hunger < 30:
             pet.care_mistakes += 0.05
         pet.hunger = clamp(pet.hunger - 8, 0, 100)
+        _clear_attention_if_satisfied(pet)
         return pet, "fed a snack"
     return pet, f"unknown food: {kind}"
 
 
-def play(pet: Pet, won: bool) -> tuple[Pet, str]:
+def play(pet: Pet, guess: str, rng: random.Random) -> tuple[Pet, dict, str]:
+    """Mini-game: pet faces left or right; user guesses. Match = win."""
     if not pet.alive:
-        return pet, "pet is no longer with us"
+        return pet, {"started": False}, "pet is no longer with us"
     if pet.is_sleeping:
-        return pet, "shh, pet is sleeping"
-    pet.weight = clamp(pet.weight - 0.5, 1, 99)
+        return pet, {"started": False}, "shh, pet is sleeping"
+    if guess not in ("left", "right"):
+        return pet, {"started": False}, "pick left or right"
+    direction = rng.choice(["left", "right"])
+    won = guess == direction
+    pet.weight = clamp(pet.weight - 0.4, 1, 99)
     if won:
         pet.happiness = clamp(pet.happiness + 18, 0, 100)
-        return pet, "you played and pet had a great time"
-    pet.happiness = clamp(pet.happiness + 6, 0, 100)
-    return pet, "you played"
+        msg = f"pet looked {direction} — you guessed right!"
+    else:
+        pet.happiness = clamp(pet.happiness - 4, 0, 100)
+        msg = f"pet looked {direction} — wrong guess"
+    _clear_attention_if_satisfied(pet)
+    return pet, {"started": True, "won": won, "direction": direction}, msg
 
 
 def clean(pet: Pet) -> tuple[Pet, str]:
     if pet.poop_count == 0:
         return pet, "nothing to clean"
     pet.poop_count = 0
+    _clear_attention_if_satisfied(pet)
     return pet, "cleaned up"
 
 
@@ -173,15 +212,35 @@ def heal(pet: Pet) -> tuple[Pet, str]:
         pet.care_mistakes += 0.05
         return pet, "pet wasn't sick"
     pet.is_sick = False
+    _clear_attention_if_satisfied(pet)
     return pet, "gave medicine"
 
 
 def discipline(pet: Pet) -> tuple[Pet, str]:
     if not pet.alive:
         return pet, "pet is no longer with us"
-    pet.discipline = clamp(pet.discipline + 10, 0, 100)
-    pet.happiness = clamp(pet.happiness - 6, 0, 100)
-    return pet, "disciplined"
+    if pet.is_sleeping:
+        return pet, "pet is asleep — let it rest"
+    if not pet.wants_attention:
+        # Scolding when pet wasn't asking for attention is a small care mistake.
+        pet.discipline = clamp(pet.discipline - 3, 0, 100)
+        pet.happiness = clamp(pet.happiness - 6, 0, 100)
+        pet.care_mistakes += 0.05
+        return pet, "pet wasn't asking for attention"
+    if pet.attention_real:
+        # Pet had a real need; scolding is a real care mistake.
+        pet.discipline = clamp(pet.discipline - 5, 0, 100)
+        pet.happiness = clamp(pet.happiness - 12, 0, 100)
+        pet.care_mistakes += 0.2
+        pet.wants_attention = False
+        pet.attention_real = False
+        return pet, "pet had a real need — bad scold"
+    # False alarm — scolding teaches discipline.
+    pet.discipline = clamp(pet.discipline + 15, 0, 100)
+    pet.happiness = clamp(pet.happiness - 3, 0, 100)
+    pet.wants_attention = False
+    pet.attention_real = False
+    return pet, "false alarm — disciplined"
 
 
 def lights(pet: Pet) -> tuple[Pet, str]:

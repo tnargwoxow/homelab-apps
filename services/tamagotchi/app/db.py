@@ -33,6 +33,8 @@ CREATE TABLE IF NOT EXISTS pet (
     alive           INTEGER NOT NULL,
     care_mistakes   REAL NOT NULL,
     lights_off      INTEGER NOT NULL,
+    wants_attention INTEGER NOT NULL DEFAULT 0,
+    attention_real  INTEGER NOT NULL DEFAULT 0,
     created_at      INTEGER NOT NULL,
     updated_at      INTEGER NOT NULL
 );
@@ -58,6 +60,16 @@ def init(path: str) -> None:
     _conn.execute("PRAGMA journal_mode=WAL")
     _conn.execute("PRAGMA synchronous=NORMAL")
     _conn.executescript(SCHEMA)
+    _migrate(_conn)
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Add columns introduced after the initial schema, idempotently."""
+    cols = {row["name"] for row in conn.execute("PRAGMA table_info(pet)").fetchall()}
+    if "wants_attention" not in cols:
+        conn.execute("ALTER TABLE pet ADD COLUMN wants_attention INTEGER NOT NULL DEFAULT 0")
+    if "attention_real" not in cols:
+        conn.execute("ALTER TABLE pet ADD COLUMN attention_real INTEGER NOT NULL DEFAULT 0")
 
 
 def _row_to_pet(row: sqlite3.Row) -> Pet:
@@ -78,6 +90,8 @@ def _row_to_pet(row: sqlite3.Row) -> Pet:
         alive=bool(row["alive"]),
         care_mistakes=row["care_mistakes"],
         lights_off=bool(row["lights_off"]),
+        wants_attention=bool(row["wants_attention"]),
+        attention_real=bool(row["attention_real"]),
     )
 
 
@@ -103,6 +117,7 @@ def save_pet(pet: Pet) -> None:
                 name=?, born_at=?, last_tick=?, age_minutes=?, life_stage=?,
                 hunger=?, happiness=?, discipline=?, weight=?, poop_count=?,
                 is_sleeping=?, is_sick=?, alive=?, care_mistakes=?, lights_off=?,
+                wants_attention=?, attention_real=?,
                 updated_at=?
             WHERE id=?
             """,
@@ -110,7 +125,9 @@ def save_pet(pet: Pet) -> None:
                 pet.name, pet.born_at, pet.last_tick, pet.age_minutes, pet.life_stage,
                 pet.hunger, pet.happiness, pet.discipline, pet.weight, pet.poop_count,
                 int(pet.is_sleeping), int(pet.is_sick), int(pet.alive), pet.care_mistakes,
-                int(pet.lights_off), now, pet.id,
+                int(pet.lights_off),
+                int(pet.wants_attention), int(pet.attention_real),
+                now, pet.id,
             ),
         )
 
@@ -134,14 +151,17 @@ def _insert_pet(pet: Pet, now_ms: int) -> None:
                 id, name, born_at, last_tick, age_minutes, life_stage,
                 hunger, happiness, discipline, weight, poop_count,
                 is_sleeping, is_sick, alive, care_mistakes, lights_off,
+                wants_attention, attention_real,
                 created_at, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 pet.id, pet.name, pet.born_at, pet.last_tick, pet.age_minutes, pet.life_stage,
                 pet.hunger, pet.happiness, pet.discipline, pet.weight, pet.poop_count,
                 int(pet.is_sleeping), int(pet.is_sick), int(pet.alive), pet.care_mistakes,
-                int(pet.lights_off), now_ms, now_ms,
+                int(pet.lights_off),
+                int(pet.wants_attention), int(pet.attention_real),
+                now_ms, now_ms,
             ),
         )
 

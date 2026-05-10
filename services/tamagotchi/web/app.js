@@ -147,8 +147,7 @@ function render(pet, msg) {
 
   els.zzz.hidden   = !pet.is_sleeping;
   els.sick.hidden  = !pet.is_sick;
-  const needsAttention = pet.alive && !pet.is_sleeping && (pet.hunger > 70 || pet.happiness < 30);
-  els.alert.hidden = !needsAttention || pet.is_sick;
+  els.alert.hidden = !pet.alive || !pet.wants_attention || pet.is_sick;
 
   if (msg) {
     els.ticker.textContent = msg;
@@ -192,17 +191,40 @@ async function refresh() {
   }
 }
 
+const playModal = document.getElementById("play-modal");
+
+function openPlayModal() {
+  return new Promise(resolve => {
+    playModal.hidden = false;
+    const onPick = async (e) => {
+      const guess = e.currentTarget.dataset.guess;
+      if (!guess) return;
+      vibrate(20);
+      playModal.querySelectorAll("[data-guess]").forEach(b => b.removeEventListener("click", onPick));
+      playModal.hidden = true;
+      try {
+        const res = await api("/api/play", "POST", { guess });
+        resolve(res);
+      } catch (e) {
+        resolve(null);
+      }
+    };
+    playModal.querySelectorAll("[data-guess]").forEach(b => b.addEventListener("click", onPick));
+  });
+}
+
 const ACTIONS = {
   "feed-meal":  () => api("/api/feed",       "POST", { kind: "meal" }),
   "feed-snack": () => api("/api/feed",       "POST", { kind: "snack" }),
-  "play":       () => api("/api/play",       "POST", { won: true }),
+  "play":       () => openPlayModal(),
   "clean":      () => api("/api/clean",      "POST"),
   "heal":       () => api("/api/heal",       "POST"),
   "discipline": () => api("/api/discipline", "POST"),
   "lights":     () => api("/api/lights",     "POST"),
   "reset":      () => {
     if (!confirm("Hatch a new egg? Current pet will be lost.")) return null;
-    return api("/api/reset", "POST", { name: "Tama" });
+    const name = (prompt("Name your new pet:", "Tama") || "Tama").trim().slice(0, 16) || "Tama";
+    return api("/api/reset", "POST", { name });
   },
 };
 
@@ -239,5 +261,27 @@ document.addEventListener("visibilitychange", () => {
   }
 });
 
+async function setupDevPanel() {
+  try {
+    const s = await api("/api/dev/status");
+    if (!s?.enabled) return;
+    const pad = document.getElementById("dev-pad");
+    pad.hidden = false;
+    pad.querySelectorAll("[data-ff]").forEach(b => {
+      b.addEventListener("click", async () => {
+        const minutes = parseInt(b.dataset.ff, 10);
+        vibrate(15);
+        try {
+          const res = await api("/api/dev/advance", "POST", { minutes });
+          render(res.pet, res.msg);
+        } catch (e) {
+          els.ticker.textContent = "advance failed";
+        }
+      });
+    });
+  } catch (e) {}
+}
+
+setupDevPanel();
 refresh();
 startPolling();

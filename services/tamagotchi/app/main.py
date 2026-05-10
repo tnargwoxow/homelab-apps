@@ -25,6 +25,7 @@ log = logging.getLogger("tamagotchi")
 
 DB_PATH = os.environ.get("TAMAGOTCHI_DB", "/data/tamagotchi.db")
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+DEV_MODE = os.environ.get("TAMAGOTCHI_DEV", "").lower() in ("1", "true", "yes")
 
 _rng = random.Random()
 _stop: asyncio.Event | None = None
@@ -54,7 +55,7 @@ class FeedBody(BaseModel):
 
 
 class PlayBody(BaseModel):
-    won: bool = True
+    guess: str = "left"
 
 
 class ResetBody(BaseModel):
@@ -101,10 +102,10 @@ def post_feed(body: FeedBody) -> dict:
 @app.post("/api/play")
 def post_play(body: PlayBody) -> dict:
     pet = _settle(db.get_or_create_pet(_now_ms()))
-    pet, msg = game.play(pet, body.won)
+    pet, result, msg = game.play(pet, body.guess, _rng)
     db.save_pet(pet)
-    db.log_event(pet.id, "play", {"won": body.won, "msg": msg})
-    return {"pet": pet.to_dict(), "msg": msg}
+    db.log_event(pet.id, "play", {"guess": body.guess, **result, "msg": msg})
+    return {"pet": pet.to_dict(), "msg": msg, "result": result}
 
 
 @app.post("/api/clean")
@@ -155,6 +156,31 @@ def get_events(limit: int = 50) -> dict:
         raise HTTPException(status_code=400, detail="limit must be 1..500")
     pet = db.get_or_create_pet(_now_ms())
     return {"events": db.list_events(pet.id, limit)}
+
+
+class AdvanceBody(BaseModel):
+    minutes: int = 60
+
+
+@app.get("/api/dev/status")
+def dev_status() -> dict:
+    return {"enabled": DEV_MODE}
+
+
+@app.post("/api/dev/advance")
+def dev_advance(body: AdvanceBody) -> dict:
+    """Fast-forward the pet's clock by N in-game minutes. Dev-mode only."""
+    if not DEV_MODE:
+        raise HTTPException(status_code=403, detail="dev mode disabled")
+    if body.minutes < 1 or body.minutes > 60 * 24 * 30:
+        raise HTTPException(status_code=400, detail="minutes must be 1..43200")
+    pet = db.get_or_create_pet(_now_ms())
+    pet = _settle(pet)
+    game.apply_ticks(pet, body.minutes, _rng)
+    pet.last_tick += body.minutes * tick.TICK_MS
+    db.save_pet(pet)
+    db.log_event(pet.id, "dev_advance", {"minutes": body.minutes})
+    return {"pet": pet.to_dict(), "msg": f"advanced {body.minutes} minutes"}
 
 
 @app.get("/")
