@@ -1,0 +1,58 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: tamagotchi
+  labels:
+    app: tamagotchi
+spec:
+  # Must stay at 1 — SQLite is single-writer and the tick loop assumes it
+  # owns the DB. Use Recreate to avoid two pods racing on the PVC.
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: tamagotchi
+  template:
+    metadata:
+      labels:
+        app: tamagotchi
+    spec:
+      securityContext:
+        fsGroup: 10001
+      containers:
+        - name: tamagotchi
+          image: tnargwoxow/tamagotchi:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+              name: http
+          env:
+            - name: TAMAGOTCHI_DB
+              value: /data/tamagotchi.db
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: tamagotchi-data

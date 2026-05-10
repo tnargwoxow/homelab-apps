@@ -1,0 +1,21 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tamagotchi
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: tamagotchi.192.168.0.77.sslip.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: tamagotchi
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - tamagotchi.192.168.0.77.sslip.io
+      secretName: tamagotchi-tls

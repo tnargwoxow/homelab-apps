@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#9bbc0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Tamagotchi">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png">
+  <link rel="apple-touch-icon" href="/icon-192.png">
+  <title>Tamagotchi</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="device">
+    <header class="screen-frame">
+      <div class="screen">
+        <div class="hud">
+          <span id="hud-stage">egg</span>
+          <span id="hud-age">0m</span>
+        </div>
+        <div class="stage" id="stage">
+          <svg class="pet" id="pet" viewBox="0 0 32 32" aria-hidden="true"></svg>
+          <div class="poops" id="poops"></div>
+          <div class="zzz" id="zzz" hidden>z z z</div>
+          <div class="alert" id="alert" hidden>!</div>
+          <div class="sick" id="sick" hidden>+</div>
+        </div>
+        <div class="bars">
+          <div class="bar"><span>hunger</span><div class="meter"><i id="bar-hunger"></i></div></div>
+          <div class="bar"><span>happy</span><div class="meter"><i id="bar-happy"></i></div></div>
+          <div class="bar"><span>weight</span><div class="meter"><i id="bar-weight"></i></div></div>
+        </div>
+        <div class="ticker" id="ticker">welcome</div>
+      </div>
+    </header>
+
+    <section class="pad">
+      <button class="btn" data-act="feed-meal">meal</button>
+      <button class="btn" data-act="feed-snack">snack</button>
+      <button class="btn" data-act="play">play</button>
+      <button class="btn" data-act="clean">clean</button>
+      <button class="btn" data-act="heal">heal</button>
+      <button class="btn" data-act="discipline">scold</button>
+      <button class="btn" data-act="lights">lights</button>
+      <button class="btn danger" data-act="reset">reset</button>
+    </section>
+  </main>
+
+  <script src="/app.js"></script>
+</body>
+</html>
