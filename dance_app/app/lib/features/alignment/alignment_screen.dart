@@ -443,8 +443,7 @@ class _AlignmentPanel extends StatelessWidget {
               ],
             ),
           ),
-          AspectRatio(
-            aspectRatio: 16 / 9,
+          Expanded(
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final size = Size(constraints.maxWidth, constraints.maxHeight);
@@ -586,13 +585,15 @@ class _ControlBar extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: <Widget>[
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: <Widget>[
                 Text(
-                  'Tutorial: $tutorialPoints / $recordingPoints :Recording',
+                  'Tutorial $tutorialPoints / Recording $recordingPoints',
                   style: Theme.of(context).textTheme.bodyMedium,
                 ),
-                const Spacer(),
                 TextButton.icon(
                   onPressed: onUndo,
                   icon: const Icon(Icons.undo),
