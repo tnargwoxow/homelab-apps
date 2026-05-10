@@ -16,10 +16,10 @@ class FakeMetadataStore implements MetadataStore {
   }
 
   @override
-  Future<List<LoopMarker>> loopMarkersFor(TutorialId tutorialId) async => _loops
-      .values
-      .where((m) => m.tutorialId == tutorialId)
-      .toList(growable: false);
+  Future<List<LoopMarker>> loopMarkersFor(TutorialId tutorialId) async =>
+      _loops.values
+          .where((m) => m.tutorialId == tutorialId)
+          .toList(growable: false);
 
   @override
   Future<void> deleteLoopMarker(String id) async {

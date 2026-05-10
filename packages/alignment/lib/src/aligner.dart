@@ -47,9 +47,15 @@ class Aligner {
     final ty = toCentroid.y - (s * fromCentroid.x + c * fromCentroid.y);
 
     return AffineTransform(<double>[
-      c, -s, tx,
-      s,  c, ty,
-      0,  0, 1,
+      c,
+      -s,
+      tx,
+      s,
+      c,
+      ty,
+      0,
+      0,
+      1,
     ]);
   }
 

@@ -5,16 +5,21 @@ import 'package:meta/meta.dart';
 /// last row is fixed at [0, 0, 1].
 @immutable
 class AffineTransform {
-  const AffineTransform(this.matrix)
-      : assert(matrix.length == 9, 'matrix must have 9 entries');
+  const AffineTransform(this.matrix);
 
   /// Row-major 3x3.
   final List<double> matrix;
 
   static const AffineTransform identity = AffineTransform(<double>[
-    1, 0, 0,
-    0, 1, 0,
-    0, 0, 1,
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1,
   ]);
 
   Point2 apply(Point2 p) {
