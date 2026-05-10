@@ -54,7 +54,27 @@ MISBEHAVE_TIMEOUT_MIN = 5     # misbehaviour auto-clears
 MISBEHAVE_PROB_PER_MIN = 0.001  # ~1 per 1000 minutes
 SICKNESS_FROM_POOP_PROB = 0.005  # per minute past POOP_PATIENCE_MIN
 
-SIM_DAY_OFFSET_MIN = 9 * 60   # pet hatches at simulated 9am, awake
+# Per-character sleep windows in *real* local hours, derived from the
+# canonical 1996 P1 documentation (thaao.net, fandom wiki). Each entry is
+# (sleep_start_hour, wake_hour). A start==wake means "never sleeps".
+SLEEP_SCHEDULES: dict[str, tuple[int, int]] = {
+    "egg":          (12, 12),    # eggs don't sleep
+    "babytchi":     (19, 10),    # young pets sleep a lot
+    "marutchi":     (20, 9),     # canonical Marutchi schedule
+    "tamatchi":     (21, 8),     # good teen
+    "kuchitamatchi":(22, 8),     # bad teen
+    "mametchi":     (21, 7),     # disciplined adult
+    "ginjirotchi":  (22, 8),
+    "kuchipatchi":  (22, 9),     # likes a lie-in
+    "tarakotchi":   (23, 11),    # sleeps a lot
+    "ghost":        (12, 12),    # dead pets don't sleep
+}
+
+DEFAULT_SLEEP_SCHEDULE = (21, 8)
+
+
+def schedule_for(character: str) -> tuple[int, int]:
+    return SLEEP_SCHEDULES.get(character, DEFAULT_SLEEP_SCHEDULE)
 
 
 @dataclass
@@ -67,6 +87,7 @@ class Pet:
     age_years: int = 0          # increments on every wake from sleep
     generation: int = 1
     life_stage: LifeStage = "egg"
+    character: str = "babytchi"  # specific form within the life stage
 
     # Stats — stored as floats, rendered as int hearts (0-4).
     hunger: float = MAX_HEARTS      # 4 = full / not hungry, 0 = starving
@@ -126,11 +147,40 @@ def _stage_for(age_minutes: int, care_mistakes: int) -> LifeStage:
     return "senior"
 
 
-def _is_sleep_hour(age_minutes: int, lights_off: bool) -> bool:
-    if lights_off:
-        return True
-    sim_hour = ((age_minutes + SIM_DAY_OFFSET_MIN) // 60) % 24
-    return sim_hour >= 21 or sim_hour < 8
+def _character_for(stage: LifeStage, prev_character: str, stage_mistakes: int) -> str:
+    """Branch evolution. Care quality during the previous stage feeds
+    forward into which form the pet takes next."""
+    if stage == "egg":
+        return "egg"
+    if stage == "baby":
+        return "babytchi"
+    if stage == "child":
+        return "marutchi"
+    if stage == "teen":
+        # Good care during child → tamatchi; otherwise → kuchitamatchi.
+        return "tamatchi" if stage_mistakes <= 2 else "kuchitamatchi"
+    if stage == "adult":
+        # Adult form depends on previous teen form + care during teen.
+        if prev_character == "tamatchi":
+            return "mametchi" if stage_mistakes <= 1 else "ginjirotchi"
+        # bad teen path
+        return "kuchipatchi" if stage_mistakes <= 2 else "tarakotchi"
+    if stage == "senior":
+        return prev_character  # senior keeps adult character (visually aged)
+    if stage == "dead":
+        return "ghost"
+    return prev_character
+
+
+def is_sleep_hour(hour: int, schedule: tuple[int, int] = DEFAULT_SLEEP_SCHEDULE) -> bool:
+    """Whether the given local hour falls inside the sleep window.
+    Handles wraparound (start > end) and the never-sleep case (start == end)."""
+    start, end = schedule
+    if start == end:
+        return False
+    if start < end:
+        return start <= hour < end
+    return hour >= start or hour < end
 
 
 def _has_real_need(pet: Pet) -> bool:
@@ -196,9 +246,12 @@ def _clear_attention_if_satisfied(pet: Pet) -> None:
         pet.attention_started_min = -1
 
 
-def _handle_sleep_transitions(pet: Pet) -> None:
-    """Toggle is_sleeping + lights mistakes + age++ on wake."""
-    should_sleep = _is_sleep_hour(pet.age_minutes, pet.lights_off)
+def _handle_sleep_transitions(pet: Pet, hour: int) -> None:
+    """Toggle is_sleeping + lights mistakes + age++ on wake.
+    `hour` is the wall-clock local hour to test against. Sleep window
+    is per-character. Lights-off doesn't keep the pet asleep — they wake
+    up naturally at the end of their schedule (canonical behaviour)."""
+    should_sleep = is_sleep_hour(hour, schedule_for(pet.character))
 
     if should_sleep and not pet.is_sleeping:
         pet.is_sleeping = True
@@ -215,7 +268,7 @@ def _handle_sleep_transitions(pet: Pet) -> None:
         pet.is_sleeping = False
         pet.sleep_start_min = -1
         pet.age_years += 1
-        pet.lights_off = False
+        pet.lights_off = False        # canonical: lights auto-turn-on
         pet.lights_late_warned = False
 
     if (
@@ -274,6 +327,7 @@ def _maybe_schedule_sickness(pet: Pet, rng: random.Random) -> None:
 def _life_stage_transition(pet: Pet) -> None:
     new_stage = _stage_for(pet.age_minutes, pet.care_mistakes)
     if new_stage != pet.life_stage:
+        pet.character = _character_for(new_stage, pet.character, pet.stage_care_mistakes)
         pet.life_stage = new_stage
         pet.stage_started_min = pet.age_minutes
         pet.stage_care_mistakes = 0
@@ -307,18 +361,22 @@ def _maybe_die(pet: Pet, rng: random.Random) -> None:
         pet.attention_real = False
 
 
-def apply_ticks(pet: Pet, ticks: int, rng: random.Random) -> Pet:
-    """Apply N minute-long ticks to the pet. Mutates and returns."""
+def apply_ticks(pet: Pet, ticks: int, rng: random.Random, hour_fn=None) -> Pet:
+    """Apply N minute-long ticks to the pet. Mutates and returns.
+    `hour_fn(i)` returns the local wall hour at the i-th tick (0-indexed,
+    after that minute elapses). If omitted the caller doesn't care about
+    sleep timing and we treat every tick as a waking minute."""
     if ticks <= 0 or not pet.alive:
         return pet
     ticks = min(ticks, MAX_CATCHUP_TICKS)
 
-    for _ in range(ticks):
+    for i in range(ticks):
         if not pet.alive:
             break
 
         pet.age_minutes += 1
-        _handle_sleep_transitions(pet)
+        hour = hour_fn(i) if hour_fn else 12  # default to "noon" = awake
+        _handle_sleep_transitions(pet, hour)
 
         # Sleep effectively pauses decay. Hunger trickles down very
         # slowly (5% rate) so a long night doesn't bottom you out;
@@ -385,8 +443,9 @@ def play_can_start(pet: Pet) -> tuple[bool, str]:
 def play_finish(pet: Pet, wins: int) -> tuple[Pet, str]:
     """Apply the outcome of a 5-round left/right game."""
     if not pet.alive or pet.is_sleeping:
-        # The frontend shouldn't reach this, but be defensive.
         return pet, "pet can't play right now"
+    if pet.life_stage in ("egg",):
+        return pet, "egg can't play yet"
     wins = max(0, min(5, int(wins)))
     pet.weight = clamp(pet.weight - 0.4, 1, 99)
     if wins >= 3:
@@ -454,3 +513,15 @@ def lights(pet: Pet) -> tuple[Pet, str]:
         # Turning lights off while pet is sleeping clears the late-warning.
         pet.lights_late_warned = True
     return pet, "lights off" if pet.lights_off else "lights on"
+
+
+def tap_egg(pet: Pet) -> tuple[Pet, dict, str]:
+    """Tap an egg to fast-forward hatching. Three taps puts it at the
+    egg→baby threshold; the next tick will transition it."""
+    if pet.life_stage != "egg" or not pet.alive:
+        return pet, {"hatched": False, "taps": 0}, "no egg to tap"
+    pet.age_minutes = min(pet.age_minutes + 1, 3)
+    taps = pet.age_minutes
+    if taps >= 3:
+        return pet, {"hatched": True, "taps": 3}, "the egg cracks open!"
+    return pet, {"hatched": False, "taps": taps}, f"crack ({taps}/3)"

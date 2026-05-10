@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS pet (
     age_years                INTEGER NOT NULL DEFAULT 0,
     generation               INTEGER NOT NULL DEFAULT 1,
     life_stage               TEXT NOT NULL,
+    character                TEXT NOT NULL DEFAULT 'egg',
     hunger                   REAL NOT NULL,
     happiness                REAL NOT NULL,
     discipline               REAL NOT NULL,
@@ -58,6 +59,13 @@ CREATE TABLE IF NOT EXISTS pet_event (
 );
 
 CREATE INDEX IF NOT EXISTS idx_pet_event_pet_ts ON pet_event(pet_id, ts);
+
+CREATE TABLE IF NOT EXISTS achievement (
+    id          TEXT PRIMARY KEY,
+    earned_at   INTEGER NOT NULL,
+    pet_id      INTEGER NOT NULL,
+    generation  INTEGER NOT NULL
+);
 """
 
 
@@ -74,6 +82,7 @@ _NEW_COLUMNS = [
     ("stage_care_mistakes",    "INTEGER NOT NULL DEFAULT 0"),
     ("stage_started_min",      "INTEGER NOT NULL DEFAULT 0"),
     ("attention_started_min",  "INTEGER NOT NULL DEFAULT -1"),
+    ("character",              "TEXT NOT NULL DEFAULT 'egg'"),
 ]
 
 
@@ -107,6 +116,7 @@ def _row_to_pet(row: sqlite3.Row) -> Pet:
         age_years=row["age_years"],
         generation=row["generation"],
         life_stage=row["life_stage"],
+        character=row["character"] or "egg",
         hunger=row["hunger"],
         happiness=row["happiness"],
         discipline=row["discipline"],
@@ -150,7 +160,7 @@ def save_pet(pet: Pet) -> None:
             """
             UPDATE pet SET
                 name=?, born_at=?, last_tick=?, age_minutes=?, age_years=?,
-                generation=?, life_stage=?, hunger=?, happiness=?, discipline=?,
+                generation=?, life_stage=?, character=?, hunger=?, happiness=?, discipline=?,
                 weight=?, poop_count=?, poop_oldest_min=?,
                 is_sleeping=?, sleep_start_min=?, lights_off=?, lights_late_warned=?,
                 is_sick=?, sick_doses_needed=?, next_sickness_min=?,
@@ -161,7 +171,7 @@ def save_pet(pet: Pet) -> None:
             """,
             (
                 pet.name, pet.born_at, pet.last_tick, pet.age_minutes, pet.age_years,
-                pet.generation, pet.life_stage, pet.hunger, pet.happiness, pet.discipline,
+                pet.generation, pet.life_stage, pet.character, pet.hunger, pet.happiness, pet.discipline,
                 pet.weight, pet.poop_count, pet.poop_oldest_min,
                 int(pet.is_sleeping), pet.sleep_start_min, int(pet.lights_off), int(pet.lights_late_warned),
                 int(pet.is_sick), pet.sick_doses_needed, pet.next_sickness_min,
@@ -193,17 +203,17 @@ def _insert_pet(pet: Pet, now_ms: int) -> None:
             """
             INSERT INTO pet (
                 id, name, born_at, last_tick, age_minutes, age_years, generation,
-                life_stage, hunger, happiness, discipline, weight, poop_count,
+                life_stage, character, hunger, happiness, discipline, weight, poop_count,
                 poop_oldest_min, is_sleeping, sleep_start_min, lights_off,
                 lights_late_warned, is_sick, sick_doses_needed, next_sickness_min,
                 alive, care_mistakes, stage_care_mistakes, stage_started_min,
                 wants_attention, attention_real, attention_started_min,
                 created_at, updated_at
-            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+            ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
             """,
             (
                 pet.id, pet.name, pet.born_at, pet.last_tick, pet.age_minutes, pet.age_years, pet.generation,
-                pet.life_stage, pet.hunger, pet.happiness, pet.discipline, pet.weight, pet.poop_count,
+                pet.life_stage, pet.character, pet.hunger, pet.happiness, pet.discipline, pet.weight, pet.poop_count,
                 pet.poop_oldest_min, int(pet.is_sleeping), pet.sleep_start_min, int(pet.lights_off),
                 int(pet.lights_late_warned), int(pet.is_sick), pet.sick_doses_needed, pet.next_sickness_min,
                 int(pet.alive), pet.care_mistakes, pet.stage_care_mistakes, pet.stage_started_min,
@@ -242,3 +252,34 @@ def close() -> None:
     if _conn is not None:
         _conn.close()
         _conn = None
+
+
+# === achievements ===
+
+def list_achievements() -> list[dict]:
+    assert _conn is not None
+    with _lock:
+        rows = _conn.execute(
+            "SELECT id, earned_at, pet_id, generation FROM achievement ORDER BY earned_at DESC"
+        ).fetchall()
+    return [
+        {"id": r["id"], "earned_at": r["earned_at"], "pet_id": r["pet_id"], "generation": r["generation"]}
+        for r in rows
+    ]
+
+
+def grant_achievement(achievement_id: str, pet_id: int, generation: int) -> bool:
+    """Grant achievement if not already earned. Returns True if newly granted."""
+    assert _conn is not None
+    now = int(time.time() * 1000)
+    with _lock:
+        existing = _conn.execute(
+            "SELECT 1 FROM achievement WHERE id = ?", (achievement_id,)
+        ).fetchone()
+        if existing:
+            return False
+        _conn.execute(
+            "INSERT INTO achievement (id, earned_at, pet_id, generation) VALUES (?, ?, ?, ?)",
+            (achievement_id, now, pet_id, generation),
+        )
+    return True

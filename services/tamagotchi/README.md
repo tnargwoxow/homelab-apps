@@ -47,6 +47,20 @@ hasn't changed, ArgoCD won't roll it for you):
 kubectl -n tamagotchi rollout restart deploy/tamagotchi
 ```
 
+## Run locally on the Mac (current setup)
+
+```bash
+docker run -d --name tamagotchi --restart unless-stopped \
+  -p 8000:8000 \
+  -e TAMAGOTCHI_DEV=1 \
+  -e TZ=Europe/Berlin \
+  -v ~/tamagotchi-data:/data \
+  tnargwoxow/tamagotchi:latest
+```
+
+`TZ` is critical — sleep windows are bound to wall-clock local time, so the
+container needs the right timezone or your pet will sleep at the wrong hours.
+
 ## Deploy
 
 K8s manifests live under `bases/tamagotchi/` and `overlays/tamagotchi/`.

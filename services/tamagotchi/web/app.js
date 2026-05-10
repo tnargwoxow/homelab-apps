@@ -195,6 +195,14 @@ const els = {
   hudName:   document.getElementById("hud-name"),
   hudStage:  document.getElementById("hud-stage"),
   hudAge:    document.getElementById("hud-age"),
+  hudStars:  document.getElementById("hud-stars"),
+  hudClock:  document.getElementById("hud-clock"),
+  soundBtn:  document.getElementById("sound-btn"),
+  confetti:  document.getElementById("confetti"),
+  exportBtn: document.getElementById("export-btn"),
+  importBtn: document.getElementById("import-btn"),
+  importFile:document.getElementById("import-file"),
+  portraitBtn: document.getElementById("portrait-btn"),
   poops:     document.getElementById("poops"),
   alert:     document.getElementById("alert"),
   sick:      document.getElementById("sick-cross"),
@@ -212,14 +220,121 @@ const els = {
   statusModal: document.getElementById("status-modal"),
   statusBody:  document.getElementById("status-body"),
   statusClose: document.getElementById("status-close"),
+  achModal:    document.getElementById("achievements-modal"),
+  achBody:     document.getElementById("achievements-body"),
+  achClose:    document.getElementById("achievements-close"),
+  achToast:    document.getElementById("achievement-toast"),
+  deathModal:  document.getElementById("death-modal"),
+  deathBody:   document.getElementById("death-body"),
+  deathClose:  document.getElementById("death-close"),
+  eggModal:    document.getElementById("egg-modal"),
+  eggBig:      document.getElementById("egg-big"),
+  eggProgress: document.getElementById("egg-progress"),
+  eggClose:    document.getElementById("egg-close"),
+  eggTapArea:  document.getElementById("egg-tap-area"),
 };
 
 let pollTimer = null;
 let lastState = null;
 let lastSpriteHash = "";
+let lastWasAlive = true;
+let deathHandled = false;
 
 function vibrate(ms) {
   try { navigator.vibrate?.(ms); } catch (e) {}
+}
+
+// === Sound system (Web Audio) ===
+const SoundEngine = (() => {
+  let ctx = null;
+  let enabled = localStorage.getItem("tamagotchi_sound") === "1";
+
+  function ensure() {
+    if (!ctx) {
+      try { ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch (e) { return null; }
+    }
+    if (ctx.state === "suspended") ctx.resume();
+    return ctx;
+  }
+
+  function tone(freq, durMs, type = "square", vol = 0.08) {
+    if (!enabled) return;
+    const c = ensure();
+    if (!c) return;
+    const t0 = c.currentTime;
+    const osc = c.createOscillator();
+    const gain = c.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(freq, t0);
+    gain.gain.setValueAtTime(vol, t0);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0 + durMs / 1000);
+    osc.connect(gain).connect(c.destination);
+    osc.start(t0);
+    osc.stop(t0 + durMs / 1000);
+  }
+
+  function sequence(notes) {
+    if (!enabled) return;
+    const c = ensure();
+    if (!c) return;
+    let when = c.currentTime;
+    for (const [freq, dur, type = "square", vol = 0.08] of notes) {
+      const osc = c.createOscillator();
+      const gain = c.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, when);
+      gain.gain.setValueAtTime(vol, when);
+      gain.gain.exponentialRampToValueAtTime(0.0001, when + dur / 1000);
+      osc.connect(gain).connect(c.destination);
+      osc.start(when);
+      osc.stop(when + dur / 1000);
+      when += dur / 1000;
+    }
+  }
+
+  // The library — keep them short, gameboy-y, square waves.
+  const sounds = {
+    click:        () => tone(800, 30, "square", 0.05),
+    feedMeal:     () => sequence([[600, 90], [780, 110]]),
+    feedSnack:    () => tone(900, 80, "square", 0.07),
+    playStart:    () => sequence([[500, 60], [700, 60]]),
+    playWin:      () => sequence([[523, 90], [659, 90], [784, 140]]),  // C-E-G
+    playLoss:     () => sequence([[523, 110], [415, 110], [349, 180]]),// C-Ab-F
+    clean:        () => sequence([[1200, 40, "sawtooth", 0.05], [900, 40, "sawtooth", 0.05]]),
+    heal:         () => sequence([[700, 80], [900, 80], [1100, 100]]),
+    scoldBad:     () => tone(180, 220, "sawtooth", 0.08),
+    scoldOk:      () => sequence([[400, 60], [550, 60]]),
+    lights:       () => tone(420, 60, "triangle", 0.06),
+    attention:    () => sequence([[880, 100], [660, 100], [880, 100]]),
+    crack:        () => tone(1100, 60, "sawtooth", 0.07),
+    hatch:        () => sequence([[400, 100], [550, 100], [700, 100], [900, 200]]),
+    death:        () => sequence([[300, 250, "triangle", 0.08], [220, 250, "triangle", 0.08], [160, 600, "triangle", 0.08]]),
+    levelUp:      () => sequence([[523, 80], [659, 80], [784, 80], [1046, 200]]),
+    achievement:  () => sequence([[784, 60], [988, 60], [1318, 140]]),
+  };
+
+  function setEnabled(on) {
+    enabled = !!on;
+    localStorage.setItem("tamagotchi_sound", enabled ? "1" : "0");
+    if (els.soundBtn) {
+      els.soundBtn.textContent = enabled ? "🔊" : "🔇";
+      els.soundBtn.setAttribute("aria-pressed", enabled ? "true" : "false");
+    }
+  }
+
+  function toggle() {
+    setEnabled(!enabled);
+    if (enabled) tone(700, 80);
+  }
+
+  return { play: (name) => { sounds[name]?.(); }, toggle, setEnabled, isEnabled: () => enabled };
+})();
+
+if (els.soundBtn) {
+  SoundEngine.setEnabled(SoundEngine.isEnabled());
+  els.soundBtn.addEventListener("click", () => {
+    SoundEngine.toggle();
+  });
 }
 
 function fmtAge(years, minutes) {
@@ -248,6 +363,59 @@ function renderDiscipline(container, pct) {
   }
 }
 
+function renderStars(pet) {
+  // 5 stars; one drops per ~3 stage-mistakes, never below 1 unless dead.
+  const m = pet.stage_care_mistakes || 0;
+  let n = 5;
+  if (m >= 1) n = 4;
+  if (m >= 3) n = 3;
+  if (m >= 6) n = 2;
+  if (m >= 10) n = 1;
+  if (!pet.alive) n = 0;
+  els.hudStars.textContent = "★".repeat(n) + "☆".repeat(5 - n);
+}
+
+function showAchievementToast(label) {
+  els.achToast.textContent = "🏆 " + label;
+  els.achToast.hidden = false;
+  // Force reflow then add the show class.
+  void els.achToast.offsetWidth;
+  els.achToast.classList.add("show");
+  SoundEngine.play("achievement");
+  setTimeout(() => {
+    els.achToast.classList.remove("show");
+    setTimeout(() => { els.achToast.hidden = true; }, 400);
+  }, 2400);
+}
+
+const ACH_LABELS = {
+  first_feed:   "First bite",
+  first_play:   "First win",
+  first_clean:  "Tidy",
+  first_heal:   "Doctor",
+  first_scold:  "Strict",
+  reach_child:  "Toddler",
+  reach_teen:   "Teenage years",
+  reach_adult:  "Adulthood",
+  reach_senior: "Long life",
+  gen_3:        "Generations",
+  perfect_baby: "Spotless start",
+  perfect_teen: "Model child",
+};
+
+function handleAchievements(ids) {
+  if (!ids || !ids.length) return;
+  // Show one at a time, queued.
+  let i = 0;
+  const next = () => {
+    if (i >= ids.length) return;
+    showAchievementToast(ACH_LABELS[ids[i]] || ids[i]);
+    i++;
+    setTimeout(next, 2600);
+  };
+  next();
+}
+
 function spriteHash(pet) {
   return [pet.life_stage, pet.is_sleeping ? 1 : 0, pet.is_sick ? 1 : 0, pet.alive ? 1 : 0].join("/");
 }
@@ -267,6 +435,23 @@ function pulse(cls) {
   setTimeout(() => els.pet.classList.remove(cls), 800);
 }
 
+function triggerLevelUp() {
+  pulse("levelup");
+  // Confetti burst.
+  const emoji = ["✨", "🎉", "⭐", "🌟", "💫"];
+  els.confetti.hidden = false;
+  els.confetti.innerHTML = "";
+  for (let i = 0; i < 12; i++) {
+    const s = document.createElement("span");
+    s.textContent = emoji[i % emoji.length];
+    s.style.left = (10 + Math.random() * 80) + "%";
+    s.style.top = (20 + Math.random() * 30) + "%";
+    s.style.animationDelay = (Math.random() * 0.3) + "s";
+    els.confetti.appendChild(s);
+  }
+  setTimeout(() => { els.confetti.hidden = true; els.confetti.innerHTML = ""; }, 1700);
+}
+
 function render(pet, msg) {
   const hash = spriteHash(pet);
   if (hash !== lastSpriteHash) {
@@ -280,6 +465,32 @@ function render(pet, msg) {
   els.hudName.textContent = pet.name + " · gen " + pet.generation;
   els.hudStage.textContent = pet.life_stage;
   els.hudAge.textContent = fmtAge(pet.age_years, pet.age_minutes);
+  renderStars(pet);
+
+  // Stage transition: hatch (egg→baby) or level-up (anything else).
+  if (lastState && pet.life_stage !== lastState.life_stage && pet.alive && pet.life_stage !== "dead") {
+    if (lastState.life_stage === "egg") {
+      SoundEngine.play("hatch");
+      triggerLevelUp();
+    } else {
+      SoundEngine.play("levelUp");
+      triggerLevelUp();
+    }
+  }
+
+  // Death detection — fire once per death.
+  if (lastWasAlive && !pet.alive && !deathHandled) {
+    deathHandled = true;
+    SoundEngine.play("death");
+    setTimeout(() => openDeathModal(pet), 600);
+  }
+  if (pet.alive) deathHandled = false;
+  lastWasAlive = pet.alive;
+
+  // Attention call — beep once on transition false→true.
+  if (lastState && !lastState.wants_attention && pet.wants_attention && !pet.is_sleeping) {
+    SoundEngine.play("attention");
+  }
 
   renderHearts(els.hungerHearts, pet.hunger_hearts);
   renderHearts(els.happyHearts,  pet.happiness_hearts);
@@ -361,8 +572,10 @@ function sleep(ms) {
 
 async function openPlayModal() {
   if (!lastState || !lastState.alive || lastState.is_sleeping) return null;
+  if (lastState.life_stage === "egg") return openEggModal();
 
   els.playModal.hidden = false;
+  SoundEngine.play("playStart");
   setPlayPetNeutral();
   els.lookArrow.textContent = "?";
   els.playFeedback.textContent = "";
@@ -424,6 +637,7 @@ async function openPlayModal() {
     // Show win/loss feedback.
     const won = result.won;
     if (won) wins++;
+    SoundEngine.play(won ? "playWin" : "playLoss");
     els.playFeedback.textContent = won ? "yes!" : "missed";
     els.playFeedback.className = "play-feedback " + (won ? "win" : "loss");
     const pip = els.playTrack.children[round];
@@ -442,8 +656,9 @@ async function openPlayModal() {
 
   await sleep(900);
   els.playModal.hidden = true;
-  if (wins >= 3) pulse("celebrate");
-  else pulse("shake");
+  if (wins >= 3) { pulse("celebrate"); SoundEngine.play("playWin"); }
+  else { pulse("shake"); SoundEngine.play("playLoss"); }
+  if (res?.achievements) handleAchievements(res.achievements);
   return res;
 }
 
@@ -478,31 +693,178 @@ function openStatusModal() {
 
 els.statusClose.addEventListener("click", () => {
   vibrate(10);
+  SoundEngine.play("click");
   els.statusModal.hidden = true;
+});
+
+// === Achievements modal ===
+async function openAchievementsModal() {
+  els.achModal.hidden = false;
+  els.achBody.textContent = "loading...";
+  try {
+    const data = await api("/api/achievements");
+    els.achBody.innerHTML = "";
+    const header = document.createElement("div");
+    header.className = "modal-title";
+    header.style.fontSize = "11px";
+    header.style.opacity = "0.7";
+    header.textContent = `${data.earned} / ${data.total} unlocked`;
+    els.achBody.appendChild(header);
+    for (const a of data.achievements) {
+      const row = document.createElement("div");
+      row.className = "ach" + (a.earned ? "" : " locked");
+      row.innerHTML = `
+        <span class="icon">${a.earned ? "🏆" : "🔒"}</span>
+        <div>
+          <div class="label">${a.label}</div>
+          <div class="desc">${a.description}</div>
+        </div>`;
+      els.achBody.appendChild(row);
+    }
+  } catch (e) {
+    els.achBody.textContent = "couldn't load";
+  }
+}
+els.achClose.addEventListener("click", () => {
+  vibrate(10); SoundEngine.play("click");
+  els.achModal.hidden = true;
+});
+
+// === Death modal ===
+function openDeathModal(pet) {
+  const lifetime = pet.age_minutes;
+  const lifetimeText = lifetime < 60
+    ? `${lifetime} min`
+    : `${Math.floor(lifetime / 60)}h ${lifetime % 60}m`;
+  els.deathBody.textContent = [
+    `${pet.name}`,
+    `gen ${pet.generation}, ${pet.character}`,
+    `lived ${lifetimeText}`,
+    `peaked at ${pet.life_stage}`,
+    `care mistakes: ${pet.care_mistakes}`,
+    ``,
+    pet.care_mistakes < 3 ? `a life well lived.` : `you'll do better next time.`,
+  ].join("\n");
+  els.deathModal.hidden = false;
+}
+els.deathClose.addEventListener("click", async () => {
+  vibrate(20);
+  els.deathModal.hidden = true;
+  const name = (prompt("Name the next pet:", "Tama") || "Tama").trim().slice(0, 16) || "Tama";
+  deathHandled = false;
+  try {
+    const res = await api("/api/reset", "POST", { name });
+    SoundEngine.play("hatch");
+    if (res?.pet) render(res.pet, res.msg);
+  } catch (e) {}
+});
+
+// === Egg-hatch tap mini-game ===
+const EGG_SPRITE = SPRITES.egg;
+const EGG_CRACK_OVERLAYS = [
+  // 0 cracks
+  ``,
+  // 1 crack
+  `<g fill="#9bbc0f">
+    <rect x="11" y="12" width="2" height="2"/>
+    <rect x="13" y="14" width="2" height="2"/>
+  </g>`,
+  // 2 cracks
+  `<g fill="#9bbc0f">
+    <rect x="11" y="12" width="2" height="2"/>
+    <rect x="13" y="14" width="2" height="2"/>
+    <rect x="15" y="12" width="2" height="2"/>
+    <rect x="17" y="14" width="2" height="2"/>
+    <rect x="14" y="16" width="2" height="2"/>
+  </g>`,
+  // hatched (full open)
+  `<g fill="#9bbc0f">
+    <rect x="9" y="11" width="14" height="10"/>
+  </g>`,
+];
+
+let eggTaps = 0;
+
+function renderEgg(taps) {
+  const overlay = EGG_CRACK_OVERLAYS[Math.min(taps, EGG_CRACK_OVERLAYS.length - 1)];
+  els.eggBig.innerHTML = SPRITES.egg + overlay;
+  els.eggProgress.textContent = `${Math.min(taps, 3)} / 3`;
+}
+
+function openEggModal() {
+  if (lastState?.life_stage !== "egg" || !lastState?.alive) return null;
+  eggTaps = 0;
+  renderEgg(0);
+  els.eggModal.hidden = false;
+  return null;
+}
+
+async function tapEgg() {
+  vibrate(20);
+  els.eggBig.classList.remove("shake");
+  void els.eggBig.offsetWidth;
+  els.eggBig.classList.add("shake");
+  SoundEngine.play("crack");
+  try {
+    const res = await api("/api/tap-egg", "POST");
+    if (res?.result?.taps) eggTaps = res.result.taps;
+    renderEgg(eggTaps);
+    if (res?.result?.hatched) {
+      SoundEngine.play("hatch");
+      els.eggProgress.textContent = "hatching!";
+      setTimeout(() => {
+        els.eggModal.hidden = false; // keep visible briefly
+        els.eggModal.hidden = true;
+        if (res?.pet) render(res.pet, res.msg);
+      }, 1200);
+    } else if (res?.pet) {
+      // Don't auto-render the main view; keep focus on the egg modal.
+      lastState = res.pet;
+    }
+  } catch (e) {}
+}
+
+els.eggTapArea.addEventListener("click", tapEgg);
+els.eggClose.addEventListener("click", () => {
+  vibrate(10); SoundEngine.play("click");
+  els.eggModal.hidden = true;
 });
 
 // === Action handlers ===
 const ACTIONS = {
   "feed-meal":  async () => {
-    pulse("eat"); showFloaty("🍚");
+    if (lastState?.life_stage === "egg") return openEggModal();
+    pulse("eat"); showFloaty("🍚"); SoundEngine.play("feedMeal");
     return api("/api/feed", "POST", { kind: "meal" });
   },
   "feed-snack": async () => {
-    pulse("eat"); showFloaty("🍬");
+    if (lastState?.life_stage === "egg") return openEggModal();
+    pulse("eat"); showFloaty("🍬"); SoundEngine.play("feedSnack");
     return api("/api/feed", "POST", { kind: "snack" });
   },
-  "play":       () => openPlayModal(),
-  "clean":      async () => { showFloaty("✨"); return api("/api/clean", "POST"); },
-  "heal":       async () => { showFloaty("💊"); return api("/api/heal", "POST"); },
+  "play": () => {
+    if (lastState?.life_stage === "egg") return openEggModal();
+    return openPlayModal();
+  },
+  "clean":      async () => { showFloaty("✨"); SoundEngine.play("clean"); return api("/api/clean", "POST"); },
+  "heal":       async () => { showFloaty("💊"); SoundEngine.play("heal"); return api("/api/heal", "POST"); },
   "discipline": async () => {
     pulse("shake");
-    return api("/api/discipline", "POST");
+    const res = await api("/api/discipline", "POST");
+    if (res?.msg?.includes("false alarm")) SoundEngine.play("scoldOk");
+    else SoundEngine.play("scoldBad");
+    return res;
   },
-  "lights":     () => api("/api/lights", "POST"),
-  "status":     () => { openStatusModal(); return null; },
+  "lights": async () => {
+    SoundEngine.play("lights");
+    return api("/api/lights", "POST");
+  },
+  "status":     () => { SoundEngine.play("click"); openStatusModal(); return null; },
+  "achievements": () => { SoundEngine.play("click"); openAchievementsModal(); return null; },
   "reset":      () => {
     if (!confirm("Hatch a new egg? Current pet will be lost.")) return null;
     const name = (prompt("Name your new pet:", "Tama") || "Tama").trim().slice(0, 16) || "Tama";
+    deathHandled = false;
     return api("/api/reset", "POST", { name });
   },
 };
@@ -515,7 +877,10 @@ document.querySelectorAll(".pad .btn, .pad-2 .btn").forEach(b => {
     try {
       const res = await fn();
       if (res === null) return;
-      if (res.pet) render(res.pet, res.msg);
+      if (res.pet) {
+        render(res.pet, res.msg);
+        handleAchievements(res.achievements);
+      }
       else if (res.id !== undefined) render(res);
     } catch (e) {
       els.ticker.textContent = "action failed";
@@ -537,6 +902,142 @@ document.addEventListener("visibilitychange", () => {
     startPolling();
   } else {
     stopPolling();
+  }
+});
+
+// === Clock display in HUD ===
+async function refreshClock() {
+  try {
+    const c = await api("/api/clock");
+    if (!c) return;
+    const hh = String(c.hour).padStart(2, "0");
+    const mm = String(c.minute).padStart(2, "0");
+    els.hudClock.textContent = `${hh}:${mm}`;
+    els.hudClock.classList.toggle("dev-offset", (c.offset_minutes || 0) !== 0);
+    els.hudClock.title = c.offset_minutes
+      ? `dev offset +${c.offset_minutes}m | sleep ${c.schedule.start}→${c.schedule.end}`
+      : `sleep ${c.schedule.start}→${c.schedule.end}`;
+  } catch (e) {}
+}
+
+// === Save / Load / Portrait ===
+function downloadBlob(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+
+async function exportSave() {
+  vibrate(10); SoundEngine.play("click");
+  try {
+    const data = await api("/api/export");
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const date = new Date().toISOString().slice(0, 10);
+    downloadBlob(blob, `tamagotchi-${data.pet?.name || "save"}-${date}.json`);
+  } catch (e) {
+    els.ticker.textContent = "save failed";
+  }
+}
+
+function importSave() {
+  vibrate(10); SoundEngine.play("click");
+  els.importFile.value = "";
+  els.importFile.click();
+}
+
+els.importFile.addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!confirm("Replace your current pet with this save?")) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    const res = await api("/api/import", "POST", { pet: data.pet });
+    if (res?.pet) {
+      render(res.pet, "imported");
+      els.achModal.hidden = true;
+    }
+  } catch (err) {
+    alert("Couldn't load that file.");
+  }
+});
+
+function exportPortrait() {
+  vibrate(10); SoundEngine.play("click");
+  // Render the current SVG to a 256×256 canvas and download.
+  const svg = els.pet.outerHTML;
+  const blob = new Blob([
+    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="256" height="256" style="image-rendering:pixelated">
+      <rect width="32" height="32" fill="#9bbc0f"/>
+      ${els.pet.innerHTML}
+    </svg>`
+  ], { type: "image/svg+xml" });
+  const url = URL.createObjectURL(blob);
+  const img = new Image();
+  img.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    ctx.drawImage(img, 0, 0, 256, 256);
+    canvas.toBlob((b) => {
+      URL.revokeObjectURL(url);
+      const date = new Date().toISOString().slice(0, 10);
+      downloadBlob(b, `${(lastState?.name || "tama")}-${lastState?.life_stage || "pet"}-${date}.png`);
+    }, "image/png");
+  };
+  img.src = url;
+}
+
+els.exportBtn.addEventListener("click", exportSave);
+els.importBtn.addEventListener("click", importSave);
+els.portraitBtn.addEventListener("click", exportPortrait);
+
+// === Keyboard shortcuts ===
+const KEYBOARD_MAP = {
+  "1": "feed-meal", "2": "feed-snack", "3": "play",       "4": "clean",
+  "5": "heal",      "6": "discipline", "7": "lights",     "8": "status",
+  "9": "achievements",
+  "f": "feed-meal", "p": "play", "c": "clean", "h": "heal", "s": "scold",
+  "l": "lights",
+};
+
+document.addEventListener("keydown", (e) => {
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  // Play modal: arrow keys for guesses
+  if (!els.playModal.hidden) {
+    if (e.key === "ArrowLeft" || e.key === "a") {
+      const b = els.playModal.querySelector('[data-guess="left"]');
+      if (b && !b.disabled) b.click();
+      return;
+    }
+    if (e.key === "ArrowRight" || e.key === "d") {
+      const b = els.playModal.querySelector('[data-guess="right"]');
+      if (b && !b.disabled) b.click();
+      return;
+    }
+    if (e.key === "Escape") { els.playModal.hidden = true; return; }
+  }
+  // Egg modal: spacebar to tap
+  if (!els.eggModal.hidden) {
+    if (e.key === " " || e.key === "Enter") { e.preventDefault(); tapEgg(); return; }
+    if (e.key === "Escape") { els.eggModal.hidden = true; return; }
+  }
+  // Status / achievements modal: Esc to close
+  if (e.key === "Escape") {
+    els.statusModal.hidden = true;
+    els.achModal.hidden = true;
+    return;
+  }
+  // Map number/letter to action
+  const act = KEYBOARD_MAP[e.key.toLowerCase()];
+  if (act) {
+    const btn = document.querySelector(`.pad .btn[data-act="${act}"], .pad-2 .btn[data-act="${act}"]`);
+    if (btn && !btn.disabled) btn.click();
   }
 });
 
@@ -563,4 +1064,6 @@ async function setupDevPanel() {
 
 setupDevPanel();
 refresh();
+refreshClock();
 startPolling();
+setInterval(refreshClock, 30_000);

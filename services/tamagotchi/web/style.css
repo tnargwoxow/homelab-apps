@@ -119,6 +119,132 @@ body {
 .hud-stage { text-align: center; }
 .hud-age { text-align: right; }
 
+.hud-sub {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  margin-top: -2px;
+}
+.hud-stars {
+  letter-spacing: 1px;
+  color: var(--gb-darkest);
+}
+.hud-clock {
+  font-family: ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--gb-darkest);
+  letter-spacing: 1px;
+}
+.hud-clock.dev-offset {
+  color: #6b2020;
+}
+.sound-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--gb-dark);
+  color: var(--gb-darkest);
+  padding: 1px 6px;
+  font-size: 14px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.sound-btn[aria-pressed="true"] {
+  background: var(--gb-darkest);
+  color: var(--gb-lightest);
+}
+
+.achievements-body {
+  display: grid;
+  gap: 4px;
+  font-size: 11px;
+  max-height: 180px;
+  overflow-y: auto;
+  width: 100%;
+  padding-right: 4px;
+}
+.achievements-body .ach {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 6px;
+  align-items: start;
+  border-bottom: 1px dashed var(--gb-dark);
+  padding-bottom: 3px;
+}
+.achievements-body .ach .icon {
+  font-size: 16px;
+  text-align: center;
+}
+.achievements-body .ach.locked {
+  opacity: 0.4;
+}
+.achievements-body .ach .label {
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+.achievements-body .ach .desc {
+  font-size: 10px;
+  text-transform: lowercase;
+}
+
+.death-title {
+  font-size: 13px;
+  font-weight: bold;
+}
+
+.achievement-toast {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%) translateY(-30px);
+  background: var(--gb-darkest);
+  color: var(--gb-lightest);
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  white-space: nowrap;
+  z-index: 10;
+  opacity: 0;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  pointer-events: none;
+}
+.achievement-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.egg-tap-area {
+  display: grid;
+  place-items: center;
+  gap: 6px;
+  cursor: pointer;
+  user-select: none;
+}
+.egg-big {
+  width: 110px;
+  height: 110px;
+  image-rendering: pixelated;
+  shape-rendering: crispEdges;
+  transition: transform 0.1s ease;
+}
+.egg-big.shake {
+  animation: egg-shake 0.3s ease-in-out 1;
+}
+@keyframes egg-shake {
+  0%, 100% { transform: rotate(0deg); }
+  20%      { transform: rotate(-12deg); }
+  60%      { transform: rotate(8deg); }
+}
+.egg-progress {
+  font-size: 12px;
+  letter-spacing: 1px;
+}
+
 /* === Stage / pet === */
 .stage {
   position: relative;
@@ -188,6 +314,32 @@ body {
 .pet.celebrate            { animation: celebrate 0.7s ease-in-out 1; }
 .pet.eat                  { animation: eat-pulse 0.45s ease-out 1; }
 .pet.shake                { animation: shake 0.35s linear 1; }
+.pet.levelup              { animation: levelup 1.4s ease-out 1; }
+
+@keyframes levelup {
+  0%   { transform: scale(1); filter: brightness(1); }
+  20%  { transform: scale(1.4) translateY(-8px); filter: brightness(2.4); }
+  40%  { transform: scale(1.1) translateY(0); filter: brightness(1.6); }
+  70%  { transform: scale(1.2) translateY(-4px); filter: brightness(1.4); }
+  100% { transform: scale(1); filter: brightness(1); }
+}
+
+.confetti {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+}
+.confetti span {
+  position: absolute;
+  font-size: 16px;
+  animation: confetti-fall 1.4s ease-out 1;
+}
+@keyframes confetti-fall {
+  0%   { opacity: 1; transform: translateY(-10px) rotate(0deg) scale(0.5); }
+  20%  { opacity: 1; transform: translateY(-30px) rotate(60deg) scale(1.3); }
+  100% { opacity: 0; transform: translateY(80px) rotate(360deg) scale(1); }
+}
 
 /* === Indicators === */
 .poops {
@@ -321,7 +473,7 @@ body {
 }
 .pad-2 {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: 1fr 1fr;
   gap: 8px;
 }
 

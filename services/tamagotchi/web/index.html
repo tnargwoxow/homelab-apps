@@ -22,6 +22,11 @@
           <span class="hud-stage" id="hud-stage">egg</span>
           <span class="hud-age" id="hud-age">0y</span>
         </div>
+        <div class="hud-sub">
+          <span class="hud-stars" id="hud-stars" aria-label="care quality"></span>
+          <span class="hud-clock" id="hud-clock" aria-label="local clock"></span>
+          <button class="sound-btn" id="sound-btn" type="button" aria-label="toggle sound">🔇</button>
+        </div>
 
         <div class="night-sky" aria-hidden="true">
           <span class="moon">☾</span>
@@ -39,6 +44,7 @@
           <div class="alert" id="alert" aria-hidden="true">!</div>
           <div class="sick-cross" id="sick-cross" aria-hidden="true">+</div>
           <div class="floaty" id="floaty" aria-hidden="true"></div>
+          <div class="confetti" id="confetti" aria-hidden="true" hidden></div>
         </div>
 
         <div class="meters">
@@ -72,11 +78,40 @@
           <div class="modal-track" id="play-track"></div>
         </div>
 
+        <div class="modal" id="egg-modal" hidden>
+          <div class="modal-title">tap to hatch</div>
+          <div class="egg-tap-area" id="egg-tap-area">
+            <svg class="egg-big" id="egg-big" viewBox="0 0 32 32" aria-hidden="true"></svg>
+            <div class="egg-progress" id="egg-progress">0 / 3</div>
+          </div>
+          <button class="btn" id="egg-close">later</button>
+        </div>
+
         <div class="modal" id="status-modal" hidden>
           <div class="modal-title">status</div>
           <pre class="status-body" id="status-body"></pre>
           <button class="btn" id="status-close">close</button>
         </div>
+
+        <div class="modal" id="achievements-modal" hidden>
+          <div class="modal-title">achievements</div>
+          <div class="achievements-body" id="achievements-body"></div>
+          <div class="modal-buttons" style="flex-wrap:wrap;gap:6px">
+            <button class="btn" id="export-btn">save</button>
+            <button class="btn" id="import-btn">load</button>
+            <button class="btn" id="portrait-btn">portrait</button>
+            <button class="btn" id="achievements-close">close</button>
+          </div>
+          <input type="file" id="import-file" accept="application/json" hidden>
+        </div>
+
+        <div class="modal" id="death-modal" hidden>
+          <div class="modal-title death-title">in loving memory</div>
+          <pre class="status-body" id="death-body"></pre>
+          <button class="btn" id="death-close">hatch new egg</button>
+        </div>
+
+        <div class="achievement-toast" id="achievement-toast" hidden></div>
       </div>
     </header>
 
@@ -92,6 +127,7 @@
     </section>
 
     <section class="pad-2">
+      <button class="btn" data-act="achievements">trophies</button>
       <button class="btn danger" data-act="reset">reset</button>
     </section>
 
