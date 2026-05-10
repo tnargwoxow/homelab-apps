@@ -16,31 +16,64 @@
 <body>
   <main class="device">
     <header class="screen-frame">
-      <div class="screen">
+      <div class="screen" id="screen">
         <div class="hud">
-          <span id="hud-stage">egg</span>
-          <span id="hud-age">0m</span>
+          <span class="hud-name" id="hud-name">tama</span>
+          <span class="hud-stage" id="hud-stage">egg</span>
+          <span class="hud-age" id="hud-age">0y</span>
         </div>
+
+        <div class="night-sky" aria-hidden="true">
+          <span class="moon">☾</span>
+          <span class="star s1">✦</span>
+          <span class="star s2">✦</span>
+          <span class="star s3">✦</span>
+        </div>
+
         <div class="stage" id="stage">
           <svg class="pet" id="pet" viewBox="0 0 32 32" aria-hidden="true"></svg>
           <div class="poops" id="poops"></div>
-          <div class="zzz" id="zzz" hidden>z z z</div>
-          <div class="alert" id="alert" hidden>!</div>
-          <div class="sick" id="sick" hidden>+</div>
+          <div class="zzz" id="zzz" aria-hidden="true">
+            <span>z</span><span>z</span><span>z</span>
+          </div>
+          <div class="alert" id="alert" aria-hidden="true">!</div>
+          <div class="sick-cross" id="sick-cross" aria-hidden="true">+</div>
+          <div class="floaty" id="floaty" aria-hidden="true"></div>
         </div>
-        <div class="bars">
-          <div class="bar"><span>hunger</span><div class="meter"><i id="bar-hunger"></i></div></div>
-          <div class="bar"><span>happy</span><div class="meter"><i id="bar-happy"></i></div></div>
-          <div class="bar"><span>weight</span><div class="meter"><i id="bar-weight"></i></div></div>
+
+        <div class="meters">
+          <div class="meter-row">
+            <span class="meter-label">hunger</span>
+            <span class="hearts" id="hearts-hunger"></span>
+          </div>
+          <div class="meter-row">
+            <span class="meter-label">happy</span>
+            <span class="hearts" id="hearts-happy"></span>
+          </div>
+          <div class="meter-row">
+            <span class="meter-label">discipline</span>
+            <span class="discipline" id="discipline-pips"></span>
+          </div>
         </div>
+
         <div class="ticker" id="ticker">welcome</div>
 
         <div class="modal" id="play-modal" hidden>
-          <div class="modal-title">guess which way</div>
+          <div class="modal-title" id="play-title">round 1 of 5</div>
+          <div class="modal-pet">
+            <svg class="play-pet" id="play-pet" viewBox="0 0 32 32" aria-hidden="true"></svg>
+          </div>
           <div class="modal-buttons">
             <button class="btn" data-guess="left">←</button>
             <button class="btn" data-guess="right">→</button>
           </div>
+          <div class="modal-track" id="play-track"></div>
+        </div>
+
+        <div class="modal" id="status-modal" hidden>
+          <div class="modal-title">status</div>
+          <pre class="status-body" id="status-body"></pre>
+          <button class="btn" id="status-close">close</button>
         </div>
       </div>
     </header>
@@ -53,6 +86,10 @@
       <button class="btn" data-act="heal">heal</button>
       <button class="btn" data-act="discipline">scold</button>
       <button class="btn" data-act="lights">lights</button>
+      <button class="btn" data-act="status">status</button>
+    </section>
+
+    <section class="pad-2">
       <button class="btn danger" data-act="reset">reset</button>
     </section>
 

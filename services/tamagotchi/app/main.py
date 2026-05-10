@@ -55,7 +55,7 @@ class FeedBody(BaseModel):
 
 
 class PlayBody(BaseModel):
-    guess: str = "left"
+    guesses: list[str] = []
 
 
 class ResetBody(BaseModel):
@@ -102,9 +102,9 @@ def post_feed(body: FeedBody) -> dict:
 @app.post("/api/play")
 def post_play(body: PlayBody) -> dict:
     pet = _settle(db.get_or_create_pet(_now_ms()))
-    pet, result, msg = game.play(pet, body.guess, _rng)
+    pet, result, msg = game.play_round(pet, body.guesses, _rng)
     db.save_pet(pet)
-    db.log_event(pet.id, "play", {"guess": body.guess, **result, "msg": msg})
+    db.log_event(pet.id, "play", {"guesses": body.guesses, **result, "msg": msg})
     return {"pet": pet.to_dict(), "msg": msg, "result": result}
 
 
@@ -164,17 +164,24 @@ class AdvanceBody(BaseModel):
 
 class SetStateBody(BaseModel):
     age_minutes: int | None = None
+    age_years: int | None = None
+    generation: int | None = None
     life_stage: str | None = None
     hunger: float | None = None
     happiness: float | None = None
     discipline: float | None = None
     weight: float | None = None
     poop_count: int | None = None
+    poop_oldest_min: int | None = None
     is_sleeping: bool | None = None
+    sleep_start_min: int | None = None
     is_sick: bool | None = None
+    sick_doses_needed: int | None = None
     alive: bool | None = None
-    care_mistakes: float | None = None
+    care_mistakes: int | None = None
+    stage_care_mistakes: int | None = None
     lights_off: bool | None = None
+    lights_late_warned: bool | None = None
     wants_attention: bool | None = None
     attention_real: bool | None = None
     name: str | None = None
