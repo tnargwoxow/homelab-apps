@@ -8,6 +8,7 @@
 library;
 
 import 'package:camera_service_api/camera_service_api.dart';
+import 'package:camera_service_impl/camera_service_impl.dart';
 import 'package:core_api/core_api.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -86,7 +87,7 @@ Future<List<Override>> buildRealOverrides() async {
   }
   return <Override>[
     videoEngineProvider.overrideWithValue(MediaKitVideoEngine()),
-    cameraServiceProvider.overrideWithValue(FakeCameraService()),
+    cameraServiceProvider.overrideWithValue(CameraServiceImpl()),
     poseDetectorProvider.overrideWithValue(FakePoseDetector()),
     mediaRepositoryProvider.overrideWithValue(mediaRepo),
     metadataStoreProvider.overrideWithValue(metadataStore),

@@ -19,6 +19,8 @@ dependencies:
     path: ../packages/alignment
   camera_service_api:
     path: ../packages/camera_service_api
+  camera_service_impl:
+    path: ../packages/camera_service_impl
   core_api:
     path: ../packages/core_api
   media_repo_api:
