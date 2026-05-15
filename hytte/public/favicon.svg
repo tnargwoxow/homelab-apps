@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <rect width="64" height="64" rx="10" fill="#f5ebd9"/>
+  <!-- Cabin -->
+  <polygon points="32,12 12,32 16,32 16,52 48,52 48,32 52,32" fill="#6b4423"/>
+  <polygon points="32,12 12,32 52,32" fill="#3d2715"/>
+  <rect x="28" y="36" width="8" height="16" fill="#3d2715"/>
+  <rect x="20" y="36" width="6" height="6" fill="#c97b3c"/>
+  <rect x="38" y="36" width="6" height="6" fill="#c97b3c"/>
+  <!-- Smoke -->
+  <circle cx="42" cy="20" r="2" fill="#fefcf8" opacity="0.85"/>
+  <circle cx="44" cy="14" r="1.6" fill="#fefcf8" opacity="0.7"/>
+</svg>

@@ -1,0 +1,104 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
+body {
+  background-color: #f5ebd9;
+  background-image:
+    radial-gradient(at 12% 6%, rgba(201, 123, 60, 0.10) 0, transparent 38%),
+    radial-gradient(at 88% 0%, rgba(58, 90, 58, 0.10) 0, transparent 45%),
+    radial-gradient(at 50% 100%, rgba(107, 68, 35, 0.08) 0, transparent 55%);
+  background-attachment: fixed;
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-hytte-wood/20 bg-hytte-snow shadow-hytte;
+  }
+
+  .card-wood {
+    @apply rounded-xl border border-hytte-wood/30 bg-hytte-parchment shadow-hytte;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 font-medium
+           transition active:scale-[0.98] focus:outline-none focus-visible:ring-2
+           focus-visible:ring-hytte-ember focus-visible:ring-offset-2 focus-visible:ring-offset-hytte-cream;
+  }
+
+  .btn-primary {
+    @apply btn bg-hytte-pine text-hytte-snow shadow-hytteSm hover:bg-hytte-pineDark;
+  }
+
+  .btn-ember {
+    @apply btn bg-hytte-ember text-hytte-snow shadow-hytteSm hover:bg-[#b56a30];
+  }
+
+  .btn-ghost {
+    @apply btn bg-transparent text-hytte-coal hover:bg-hytte-wood/10;
+  }
+
+  .btn-outline {
+    @apply btn border border-hytte-wood/30 bg-hytte-snow text-hytte-coal hover:bg-hytte-parchment;
+  }
+
+  .chip {
+    @apply inline-flex items-center gap-1 rounded-full bg-hytte-parchment px-2.5 py-0.5
+           text-xs font-medium text-hytte-coal/80 border border-hytte-wood/15;
+  }
+
+  .heading {
+    @apply font-display italic text-hytte-woodDark;
+  }
+
+  .divider {
+    @apply h-px w-full bg-gradient-to-r from-transparent via-hytte-wood/30 to-transparent;
+  }
+}
+
+/* Print-friendly grocery list */
+@media print {
+  body {
+    background: white !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  .card,
+  .card-wood {
+    box-shadow: none !important;
+    border: 1px solid #ccc;
+  }
+}
+
+/* Subtle wood-grain texture used behind certain panels */
+.bg-grain {
+  background-image:
+    repeating-linear-gradient(
+      90deg,
+      rgba(107, 68, 35, 0.04) 0px,
+      rgba(107, 68, 35, 0.04) 1px,
+      transparent 1px,
+      transparent 6px
+    ),
+    repeating-linear-gradient(
+      90deg,
+      rgba(107, 68, 35, 0.06) 0px,
+      rgba(107, 68, 35, 0.06) 0.5px,
+      transparent 0.5px,
+      transparent 22px
+    );
+}
