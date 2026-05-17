@@ -11,8 +11,7 @@ class PracticeScreen extends StatelessWidget {
         child: EmptyState(
           icon: Icons.videocam_outlined,
           title: 'Practice',
-          message:
-              'Live camera overlay over tutorial video lands in Phase 2.',
+          message: 'Live camera overlay over tutorial video lands in Phase 2.',
         ),
       ),
     );
