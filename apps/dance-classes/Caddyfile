@@ -1,0 +1,27 @@
+{
+	# Use Caddy's internal CA — issues a self-signed cert covering the LAN
+	# host below. You'll click "advanced → proceed" once per device the
+	# first time you visit; after that the cert is remembered.
+	local_certs
+	admin off
+	auto_https disable_redirects
+}
+
+# The LAN_HOST env var is your phone-reachable hostname or IP, e.g.
+# 192.168.0.19 or mimi.local. Defaults to localhost so the container
+# still boots if the variable is missing.
+{$LAN_HOST:localhost}:8443 {
+	tls internal
+	encode zstd gzip
+
+	# Range-aware streaming proxy: keep the connection alive long enough
+	# for full-video downloads and don't buffer the body (so byte-range
+	# seeks behave like the underlying server).
+	reverse_proxy localhost:8080 {
+		flush_interval -1
+		transport http {
+			read_buffer 64KB
+			write_buffer 64KB
+		}
+	}
+}

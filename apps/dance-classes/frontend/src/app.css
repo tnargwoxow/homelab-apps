@@ -1,0 +1,288 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Theme tokens. Each theme defines the same set of variables;
+   the active theme is selected by `[data-theme="..."]` on <html>.
+   ============================================================ */
+
+:root,
+[data-theme='ballet'] {
+  --theme-grad-1: #ffe4ef;
+  --theme-grad-2: #f3e8ff;
+  --theme-grad-3: #fce7f3;
+  --theme-bg-base: #fff5f8;
+  --theme-bg-mid:  #fdf4ff;
+  --theme-bg-end:  #f5f3ff;
+
+  --theme-text:        #3b0764;
+  --theme-text-strong: #6b21a8;
+  --theme-text-muted:  #9d6cc7;
+
+  --theme-accent:        #ec4899;        /* pink-500 */
+  --theme-accent-hover:  #db2777;
+  --theme-accent-2:      #a855f7;        /* purple-500 */
+
+  --theme-card-bg:        rgba(255, 255, 255, 0.78);
+  --theme-card-ring:      #fbcfe8;
+  --theme-card-ring-hover:#ec4899;
+  --theme-card-shadow:    0 1px 2px rgba(236, 72, 153, 0.12);
+  --theme-card-shadow-h:  0 6px 14px rgba(236, 72, 153, 0.18);
+
+  --theme-header-bg:    rgba(255, 255, 255, 0.7);
+  --theme-header-ring:  rgba(244, 114, 182, 0.4);
+  --theme-pill-bg:      #ffffff;
+  --theme-pill-ring:    #fbcfe8;
+  --theme-pill-text:    #6b21a8;
+  --theme-pill-hover:   #fce7f3;
+
+  --theme-display-font: 'Pacifico', 'Brush Script MT', 'Comic Sans MS', cursive;
+  --theme-body-font:    'Quicksand', ui-sans-serif, system-ui, sans-serif;
+
+  --theme-twinkle-1: #f9a8d4;
+  --theme-twinkle-2: #f0abfc;
+  --theme-twinkle-3: #fda4af;
+  --theme-twinkle-4: #d8b4fe;
+
+  --theme-progress-from: #f472b6;
+  --theme-progress-to:   #d946ef;
+}
+
+[data-theme='heels'] {
+  --theme-grad-1: #1a0014;
+  --theme-grad-2: #2a0a20;
+  --theme-grad-3: #14040a;
+  --theme-bg-base: #0a0008;
+  --theme-bg-mid:  #160418;
+  --theme-bg-end:  #050003;
+
+  --theme-text:        #fce7f3;
+  --theme-text-strong: #ffe4ec;
+  --theme-text-muted:  #c084fc;
+
+  --theme-accent:        #d946ef;        /* hot magenta */
+  --theme-accent-hover:  #c026d3;
+  --theme-accent-2:      #fbbf24;        /* gold */
+
+  --theme-card-bg:        rgba(20, 5, 25, 0.62);
+  --theme-card-ring:      rgba(217, 70, 239, 0.35);
+  --theme-card-ring-hover:#fbbf24;
+  --theme-card-shadow:    0 1px 2px rgba(0, 0, 0, 0.4);
+  --theme-card-shadow-h:  0 6px 18px rgba(217, 70, 239, 0.35);
+
+  --theme-header-bg:    rgba(15, 2, 18, 0.78);
+  --theme-header-ring:  rgba(217, 70, 239, 0.3);
+  --theme-pill-bg:      rgba(40, 10, 45, 0.7);
+  --theme-pill-ring:    rgba(217, 70, 239, 0.3);
+  --theme-pill-text:    #fce7f3;
+  --theme-pill-hover:   rgba(217, 70, 239, 0.18);
+
+  --theme-display-font: 'Cinzel', 'Playfair Display', Georgia, serif;
+  --theme-body-font:    'Manrope', ui-sans-serif, system-ui, sans-serif;
+
+  --theme-twinkle-1: #fbbf24;
+  --theme-twinkle-2: #d946ef;
+  --theme-twinkle-3: #f59e0b;
+  --theme-twinkle-4: #c084fc;
+
+  --theme-progress-from: #d946ef;
+  --theme-progress-to:   #fbbf24;
+}
+
+[data-theme='hiphop'] {
+  --theme-grad-1: #0a0000;
+  --theme-grad-2: #170303;
+  --theme-grad-3: #050000;
+  --theme-bg-base: #0a0a0a;
+  --theme-bg-mid:  #141010;
+  --theme-bg-end:  #050000;
+
+  --theme-text:        #fafafa;
+  --theme-text-strong: #ffffff;
+  --theme-text-muted:  #a3a3a3;
+
+  /* Flying Steps Berlin uses a deep crimson red as their primary brand color */
+  --theme-accent:        #e30613;        /* Flying Steps red */
+  --theme-accent-hover:  #b30410;
+  --theme-accent-2:      #ffffff;
+
+  --theme-card-bg:        rgba(15, 8, 8, 0.74);
+  --theme-card-ring:      #2a2020;
+  --theme-card-ring-hover:#e30613;
+  --theme-card-shadow:    0 1px 2px rgba(0, 0, 0, 0.5);
+  --theme-card-shadow-h:  0 6px 18px rgba(227, 6, 19, 0.35);
+
+  --theme-header-bg:    rgba(8, 4, 4, 0.9);
+  --theme-header-ring:  #2a2020;
+  --theme-pill-bg:      #1a1212;
+  --theme-pill-ring:    #2a2020;
+  --theme-pill-text:    #fafafa;
+  --theme-pill-hover:   #2a1818;
+
+  --theme-display-font: 'Bebas Neue', 'Anton', 'Impact', sans-serif;
+  --theme-body-font:    'Inter', ui-sans-serif, system-ui, sans-serif;
+
+  --theme-twinkle-1: #e30613;
+  --theme-twinkle-2: #ffffff;
+  --theme-twinkle-3: #b30410;
+  --theme-twinkle-4: #fafafa;
+
+  --theme-progress-from: #e30613;
+  --theme-progress-to:   #ffffff;
+}
+
+/* ============================================================
+   Globals
+   ============================================================ */
+
+html, body, #app {
+  height: 100%;
+}
+
+/* Defense in depth: keep stray-wide content from causing the whole page
+   to scroll horizontally on phones. Individual components should still
+   wrap properly; this is just a backstop. `overflow-x: hidden` is more
+   widely supported than `clip` on Android Chrome / Samsung Internet, and
+   we use 100% instead of 100vw to avoid scrollbar-width quirks. */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+  max-width: 100%;
+  position: relative;
+  /* Stops Samsung Internet from horizontal-scrolling the page even when
+     a stray child node briefly overflows. Vertical scroll still works. */
+  touch-action: pan-y;
+}
+
+#app {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+/* Native video on Samsung/Android Chrome can briefly use intrinsic
+   dimensions before honoring `aspect-video w-full` — this enforces it. */
+video {
+  max-width: 100%;
+}
+
+body {
+  background:
+    radial-gradient(60rem 30rem at 0% -10%,  var(--theme-grad-1) 0%, transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%,  var(--theme-grad-2) 0%, transparent 55%),
+    radial-gradient(40rem 30rem at 50% 100%, var(--theme-grad-3) 0%, transparent 55%),
+    linear-gradient(180deg, var(--theme-bg-base) 0%, var(--theme-bg-mid) 50%, var(--theme-bg-end) 100%);
+  background-attachment: fixed;
+  color: var(--theme-text);
+  font-family: var(--theme-body-font);
+  transition: background-color 200ms ease, color 200ms ease;
+}
+
+.font-display {
+  font-family: var(--theme-display-font);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+}
+
+[data-theme='hiphop'] .font-display,
+[data-theme='heels']  .font-display {
+  letter-spacing: 0.04em;
+}
+
+[data-theme='hiphop'] .font-display {
+  text-transform: uppercase;
+}
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--theme-card-ring); border-radius: 6px; }
+::-webkit-scrollbar-thumb:hover { background: var(--theme-accent); }
+
+video::-webkit-media-controls-panel {
+  background-color: rgba(0, 0, 0, 0.4);
+}
+
+@keyframes mimi-float {
+  0%, 100% { transform: translateY(0)   rotate(-2deg); }
+  50%      { transform: translateY(-6px) rotate( 2deg); }
+}
+.mimi-float { animation: mimi-float 4s ease-in-out infinite; }
+
+@keyframes mimi-bob {
+  0%, 100% { transform: translateY(0)   rotate( 3deg); }
+  50%      { transform: translateY(-4px) rotate(-3deg); }
+}
+.mimi-bob { animation: mimi-bob 5s ease-in-out infinite; }
+
+@keyframes mimi-twinkle {
+  0%, 100% { opacity: 0.4; transform: scale(0.9); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+.mimi-twinkle { animation: mimi-twinkle 2.4s ease-in-out infinite; }
+
+/* Streak flame — flickering when alive, slow ember when at risk. */
+@keyframes streak-flicker {
+  0%, 100% { transform: scale(1)    rotate(-1deg); filter: drop-shadow(0 0 4px rgba(251,146,60,0.6)); opacity: 1; }
+  50%      { transform: scale(1.05) rotate( 1deg); filter: drop-shadow(0 0 8px rgba(251,146,60,0.8)); opacity: 0.92; }
+}
+.streak-flame-flicker { animation: streak-flicker 1.6s ease-in-out infinite; transform-origin: 50% 90%; transform-box: fill-box; }
+
+@keyframes streak-ember {
+  0%, 100% { transform: scale(0.95); filter: hue-rotate(-15deg) drop-shadow(0 0 2px rgba(220,38,38,0.4)); opacity: 0.7; }
+  50%      { transform: scale(1);    filter: hue-rotate(-25deg) drop-shadow(0 0 5px rgba(220,38,38,0.6)); opacity: 0.85; }
+}
+.streak-flame-ember { animation: streak-ember 2.6s ease-in-out infinite; transform-origin: 50% 90%; transform-box: fill-box; }
+
+/* Mascot idle micro-animations — applied to an inner element so they
+   compose with the outer .mimi-float / .mimi-bob wrappers in App.svelte
+   without clobbering each other's transforms. */
+@keyframes mimi-squirt-tilt { 0%, 100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+.mimi-squirt-tilt { animation: mimi-squirt-tilt 5s ease-in-out infinite; transform-origin: 50% 70%; }
+
+@keyframes mimi-mew-spin { from { transform: rotate(-2deg); } to { transform: rotate(2deg); } }
+.mimi-mew-spin { animation: mimi-mew-spin 12s linear infinite alternate; transform-origin: 50% 50%; }
+
+@keyframes heels-shimmer {
+  0%, 100% { transform: scale(1);    filter: drop-shadow(0 0 2px rgba(251,191,36,.4)); }
+  50%      { transform: scale(1.04); filter: drop-shadow(0 0 6px rgba(251,191,36,.7)); }
+}
+.heels-shimmer { animation: heels-shimmer 3s ease-in-out infinite; transform-origin: 50% 50%; transform-box: fill-box; }
+
+@keyframes hiphop-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.hiphop-spin { animation: hiphop-spin 8s linear infinite; transform-origin: 50% 50%; transform-box: fill-box; }
+
+/* Celebration sparks — particles fly out from spawn point and fade. */
+@keyframes celebrate-spark {
+  0%   { transform: translate(0, 0) scale(0.5); opacity: 1; }
+  100% { transform: translate(var(--dx), var(--dy)) scale(1.2); opacity: 0; }
+}
+.celebrate-spark { animation: celebrate-spark 1.4s ease-out forwards; }
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-flame-flicker, .streak-flame-ember,
+  .mimi-squirt-tilt, .mimi-mew-spin, .heels-shimmer, .hiphop-spin,
+  .celebrate-spark { animation: none !important; }
+}
+
+/* ============================================================
+   Theme-specific decorative tweaks
+   ============================================================ */
+
+/* hiphop adds a subtle dot grid */
+[data-theme='hiphop'] body {
+  background-image:
+    radial-gradient(60rem 30rem at 0% -10%,  var(--theme-grad-1) 0%, transparent 60%),
+    radial-gradient(50rem 30rem at 100% 0%,  var(--theme-grad-2) 0%, transparent 55%),
+    radial-gradient(40rem 30rem at 50% 100%, var(--theme-grad-3) 0%, transparent 55%),
+    linear-gradient(180deg, var(--theme-bg-base) 0%, var(--theme-bg-mid) 50%, var(--theme-bg-end) 100%),
+    radial-gradient(circle at 1px 1px, rgba(250, 204, 21, 0.06) 1px, transparent 0);
+  background-size: auto, auto, auto, auto, 24px 24px;
+  background-attachment: fixed;
+}
+
+/* heels gets a faint vignette */
+[data-theme='heels'] body::after {
+  content: '';
+  position: fixed; inset: 0; pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,0.5) 100%);
+  z-index: 0;
+}

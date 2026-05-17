@@ -1,0 +1,55 @@
+services:
+  dance-classes:
+    build: .
+    image: mimis-dance-wonderland:local
+    container_name: mimis-dance-wonderland
+    restart: unless-stopped
+    # Host networking is required so the app can browse mDNS for Chromecasts
+    # on the LAN. Plex/Jellyfin/Home Assistant run the same way for the same
+    # reason. With host networking the container shares the LXC's IP and
+    # listens directly on $PORT — no `ports:` block.
+    network_mode: host
+    volumes:
+      - ${VIDEOS_HOST_PATH:?set VIDEOS_HOST_PATH in .env}:/videos:ro
+      - ./data:/data
+    environment:
+      VIDEOS_DIR: /videos
+      DATA_DIR: /data
+      PORT: "8080"
+      # ffmpeg is single-threaded per worker; raise this to use more cores
+      # during the initial thumbnail pass. Idle CPU is unaffected since
+      # workers only run when there are pending videos.
+      THUMB_CONCURRENCY: "2"
+      PROBE_CONCURRENCY: "2"
+      LOG_LEVEL: info
+      # Pin the URL the Chromecast will hit for streams. We force it to
+      # http://${LAN_HOST}:8080 so casts keep working when you visit the
+      # UI over HTTPS — Chromecasts can't trust the self-signed cert
+      # Caddy serves on :8443, but they happily play plain HTTP on :8080.
+      PUBLIC_BASE_URL: "http://${LAN_HOST:-localhost}:8080"
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+          # Uncomment to throttle CPU; otherwise the container uses whatever
+          # cores the LXC has.
+          # cpus: "2.0"
+
+  # HTTPS frontend so browsers will let the self-review tile use the camera
+  # (getUserMedia is gated to secure contexts). Caddy issues a self-signed
+  # cert from its internal CA covering ${LAN_HOST} on :8443 and reverse-
+  # proxies everything to the dance app on :8080. Accept the cert warning
+  # once per device.
+  caddy:
+    image: caddy:2-alpine
+    container_name: mimis-dance-caddy
+    restart: unless-stopped
+    network_mode: host
+    depends_on:
+      - dance-classes
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./data/caddy-data:/data
+      - ./data/caddy-config:/config
+    environment:
+      LAN_HOST: ${LAN_HOST:-localhost}
