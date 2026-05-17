@@ -1,0 +1,23 @@
+name: camera_service_impl
+description: CameraService implementation backed by the official `camera` package.
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  camera: ^0.11.0
+  meta: ^1.12.0
+
+  camera_service_api:
+    path: ../camera_service_api
+  core_api:
+    path: ../core_api
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

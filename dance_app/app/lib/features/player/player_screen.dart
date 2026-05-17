@@ -3,11 +3,14 @@ import 'dart:async';
 import 'package:core_api/core_api.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:media_repo_api/media_repo_api.dart';
+import 'package:metadata_store_api/metadata_store_api.dart';
 import 'package:ui_kit/ui_kit.dart';
 import 'package:video_engine_api/video_engine_api.dart';
 import 'package:video_engine_media_kit/video_engine_media_kit.dart';
 
 import '../../composition_root.dart';
+import 'ghost_overlay.dart';
 import 'player_providers.dart';
 
 /// Player screen: video output, scrubber, play/pause, speed, A/B loop.
@@ -31,6 +34,15 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
 
   StreamSubscription<Duration>? _positionSub;
   StreamSubscription<PlaybackState>? _stateSub;
+
+  // Ghost playback state.
+  bool _ghostOn = false;
+  double _ghostOpacity = 0.45;
+  RecordingMedia? _ghostRecording;
+  AlignmentPreset? _ghostPreset;
+  MediaKitVideoEngine? _ghostEngine;
+  GhostSyncController? _ghostSync;
+  String? _ghostError;
 
   @override
   void initState() {
@@ -62,7 +74,92 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
   void dispose() {
     unawaited(_positionSub?.cancel());
     unawaited(_stateSub?.cancel());
+    unawaited(_tearDownGhost());
     super.dispose();
+  }
+
+  Future<void> _tearDownGhost() async {
+    final sync = _ghostSync;
+    final engine = _ghostEngine;
+    _ghostSync = null;
+    _ghostEngine = null;
+    if (sync != null) {
+      await sync.dispose();
+    }
+    if (engine != null) {
+      await engine.dispose();
+    }
+  }
+
+  Future<void> _setupGhost() async {
+    final tutorialId = _loadedTutorialId;
+    if (tutorialId == null) return;
+    final repo = ref.read(mediaRepositoryProvider);
+    final store = ref.read(metadataStoreProvider);
+    final recordings = await repo.listRecordings(tutorialId);
+    AlignmentPreset? chosenPreset;
+    RecordingMedia? chosenRec;
+    for (final r in recordings) {
+      final preset = await store.alignmentFor(r.id);
+      if (preset != null) {
+        chosenPreset = preset;
+        chosenRec = r;
+        break;
+      }
+    }
+    if (chosenPreset == null || chosenRec == null) {
+      if (!mounted) return;
+      setState(() {
+        _ghostOn = false;
+        _ghostError = 'No aligned recordings yet. Align one in the Align tab.';
+      });
+      return;
+    }
+
+    final engine = MediaKitVideoEngine();
+    await engine.load(chosenRec.ref);
+    final tutorialEngine = ref.read(videoEngineProvider);
+    final sync = GhostSyncController(
+      tutorial: tutorialEngine,
+      recording: engine,
+      preset: chosenPreset,
+    )..start();
+    if (!mounted) {
+      await sync.dispose();
+      await engine.dispose();
+      return;
+    }
+    setState(() {
+      _ghostRecording = chosenRec;
+      _ghostPreset = chosenPreset;
+      _ghostEngine = engine;
+      _ghostSync = sync;
+      _ghostError = null;
+    });
+    // Snap recording to the current tutorial position.
+    await engine.seek(Duration(
+      milliseconds: (_position.inMilliseconds -
+              chosenPreset.tutorialKeyframeMs +
+              chosenPreset.recordingKeyframeMs)
+          .clamp(0, 1 << 31),
+    ));
+  }
+
+  Future<void> _toggleGhost(bool on) async {
+    setState(() {
+      _ghostOn = on;
+      _ghostError = null;
+    });
+    if (on) {
+      await _setupGhost();
+    } else {
+      await _tearDownGhost();
+      if (!mounted) return;
+      setState(() {
+        _ghostRecording = null;
+        _ghostPreset = null;
+      });
+    }
   }
 
   Future<void> _ensureLoaded(TutorialId? id) async {
@@ -175,7 +272,18 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
           children: <Widget>[
             AspectRatio(
               aspectRatio: 16 / 9,
-              child: MediaKitVideoView(engine: engine),
+              child: Stack(
+                fit: StackFit.expand,
+                children: <Widget>[
+                  MediaKitVideoView(engine: engine),
+                  if (_ghostOn && _ghostEngine != null && _ghostPreset != null)
+                    GhostOverlay(
+                      engine: _ghostEngine!,
+                      preset: _ghostPreset!,
+                      opacity: _ghostOpacity,
+                    ),
+                ],
+              ),
             ),
             TimelineScrubber(
               position: _position,
@@ -199,6 +307,14 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
               ],
             ),
             SpeedControl(value: _rate, onChanged: _onRateChanged),
+            _GhostControls(
+              isOn: _ghostOn,
+              opacity: _ghostOpacity,
+              recording: _ghostRecording,
+              error: _ghostError,
+              onToggle: (v) => unawaited(_toggleGhost(v)),
+              onOpacity: (v) => setState(() => _ghostOpacity = v),
+            ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               child: Row(
@@ -238,6 +354,63 @@ class _PlayerScreenState extends ConsumerState<PlayerScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+class _GhostControls extends StatelessWidget {
+  const _GhostControls({
+    required this.isOn,
+    required this.opacity,
+    required this.recording,
+    required this.error,
+    required this.onToggle,
+    required this.onOpacity,
+  });
+
+  final bool isOn;
+  final double opacity;
+  final RecordingMedia? recording;
+  final String? error;
+  final ValueChanged<bool> onToggle;
+  final ValueChanged<double> onOpacity;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Row(
+            children: <Widget>[
+              const Icon(Icons.layers_outlined, size: 18),
+              const SizedBox(width: 8),
+              Text('Ghost', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(width: 12),
+              Switch(value: isOn, onChanged: onToggle),
+              const SizedBox(width: 12),
+              if (isOn && recording != null)
+                Expanded(
+                  child: Text(
+                    'Overlay: ${recording!.createdAt.toIso8601String().substring(0, 16).replaceAll('T', ' ')}',
+                    style: Theme.of(context).textTheme.bodySmall,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
+          ),
+          if (isOn && recording != null)
+            Slider(value: opacity, onChanged: onOpacity),
+          if (error != null)
+            Text(
+              error!,
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.error,
+                  ),
+            ),
+        ],
       ),
     );
   }
