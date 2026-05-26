@@ -3,3 +3,6 @@ backend/data
 data
 **/*.log
 .git
+.env
+fly.toml
+scripts
