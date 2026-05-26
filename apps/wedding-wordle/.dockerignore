@@ -1,0 +1,5 @@
+backend/node_modules
+backend/data
+data
+**/*.log
+.git
