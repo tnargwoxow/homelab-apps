@@ -11,21 +11,40 @@ from .namespaces import local_name, qn
 # on create. We strip these before re-posting. Extend this set if the API
 # returns "unknown/forbidden element" errors for a fresh ad (see README).
 READ_ONLY_LOCALNAMES = {
-    "id",
+    # timestamps / status the server owns
     "start-date-time",
     "end-date-time",
     "displayed-until-date-time",
+    "user-since-date-time",
+    "last-user-edit-date",
     "ad-status",
     "state",
+    # identity / account fields derived from the authenticated user
     "link",
     "user-id",
     "account-id",
-    "ad-source",
-    "search-distance",
     "store-id",
     "store-title",
-    "imprint",
+    "seller-account-type",
+    "contact-name-initials",
+    "userBadges",
+    "ad-source",
+    "ad-source-id",
+    "ad-external-reference-id",
+    "originId",
+    # server-computed display / tracking / misc
+    "placeholder-image-present",
     "features-active",
+    "displayoptions",
+    "tracking",
+    "medias",
+    "documents",
+    "buy-now",
+    "financing-provider",
+    "financing-details",
+    "financing-eligible",
+    "re-financing-eligible",
+    "search-distance",
     "visible-on-map",
     "rank",
 }
@@ -62,6 +81,8 @@ def sanitize_ad_xml(ad_xml: str, pictures: ET.Element | None = None) -> str:
         if local_name(child.tag) in READ_ONLY_LOCALNAMES:
             root.remove(child)
 
+    _slim_for_create(root)
+
     # Replace the pictures block with the freshly re-uploaded one.
     if pictures is not None:
         for child in list(root):
@@ -70,6 +91,36 @@ def sanitize_ad_xml(ad_xml: str, pictures: ET.Element | None = None) -> str:
         root.append(pictures)
 
     return ET.tostring(root, encoding="unicode")
+
+
+def _slim_for_create(root: ET.Element) -> None:
+    """Reduce the read (GET) representation to what create (POST) accepts.
+
+    The GET payload enriches category/location/attributes with display-only
+    children (localized names, regions, labels) that the create parser chokes on.
+    Strip those down to the bare identifiers + values.
+    """
+    for child in root:
+        name = local_name(child.tag)
+        if name == "category":
+            # Keep only the id attribute; drop id-name/localized-name/etc.
+            for sub in list(child):
+                child.remove(sub)
+        elif name == "locations":
+            for location in child.findall(qn("loc", "location")):
+                for sub in list(location):
+                    location.remove(sub)
+        elif name == "attributes":
+            for attribute in child.findall(qn("attr", "attribute")):
+                # Keep name + type + the value(s); drop display-only attrs.
+                for key in list(attribute.attrib):
+                    if key not in ("name", "type"):
+                        del attribute.attrib[key]
+                for value in attribute.findall(qn("attr", "range-value")):
+                    if not (value.text and value.text.strip()):
+                        attribute.remove(value)
+                for value in attribute.findall(qn("attr", "value")):
+                    value.attrib.pop("localized-label", None)
 
 
 def repost(client, ad_id: str, *, dry_run: bool = False) -> str | None:

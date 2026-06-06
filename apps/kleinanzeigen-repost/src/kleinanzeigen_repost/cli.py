@@ -45,13 +45,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     _load_dotenv()
-    email = os.environ.get("KA_EMAIL")
-    password = os.environ.get("KA_PASSWORD")
-    token = os.environ.get("KA_TOKEN")  # optional: skip the gated login endpoint
-    if not email or not (password or token):
-        parser.error(
-            "set KA_EMAIL and KA_PASSWORD (env or .env), or KA_EMAIL + KA_TOKEN"
-        )
+    refresh_token = os.environ.get("KA_REFRESH_TOKEN")
+    if not refresh_token:
+        parser.error("set KA_REFRESH_TOKEN (env or .env) — see README")
 
     try:
         ad_id = parse_ad_id(args.ad)
@@ -59,7 +55,11 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(str(exc))
 
     try:
-        client = KleinanzeigenClient(email, password or "", token=token)
+        client = KleinanzeigenClient(
+            refresh_token,
+            email=os.environ.get("KA_EMAIL"),
+            user_id=os.environ.get("KA_USER_ID"),
+        )
         result = repost(client, ad_id, dry_run=args.dry_run)
 
         if args.dry_run:

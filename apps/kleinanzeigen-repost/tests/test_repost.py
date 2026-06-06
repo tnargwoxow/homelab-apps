@@ -58,21 +58,24 @@ def test_sanitize_strips_readonly_fields(sample_xml):
     assert "version" not in root.attrib
 
     locals_present = {local_name(c.tag) for c in root}
-    assert "ad-status" not in locals_present
-    assert "start-date-time" not in locals_present
-    assert "user-id" not in locals_present
-    assert "link" not in locals_present
+    # server-managed fields stripped (incl. modern ones)
+    for stripped in (
+        "ad-status", "start-date-time", "user-id", "link",
+        "userBadges", "displayoptions", "tracking",
+        "contact-name-initials", "seller-account-type",
+    ):
+        assert stripped not in locals_present, stripped
 
-    # Content fields survive.
-    assert "title" in locals_present
-    assert "description" in locals_present
-    assert "price" in locals_present
+    # Content fields survive (including contact-name, which is NOT read-only).
+    for kept in ("title", "description", "price", "contact-name"):
+        assert kept in locals_present, kept
 
 
 def test_sanitize_replaces_pictures(sample_xml):
-    new_pics = pictures.build_pictures_element(
-        [[("XXL", "https://new.example/img1.jpg")]]
-    )
+    new_pics = ET.Element(qn("pic", "pictures"))
+    pic = ET.SubElement(new_pics, qn("pic", "picture"))
+    ET.SubElement(pic, qn("pic", "link")).set("href", "https://new.example/img1.jpg")
+
     out = sanitize_ad_xml(sample_xml, pictures=new_pics)
     root = ET.fromstring(out)
 
@@ -91,34 +94,46 @@ def test_extract_picture_urls_picks_largest(sample_xml):
     assert all("rule=$_59.JPG" in u for u in urls)  # the XXL variant
 
 
-def test_extract_uploaded_links_list_shape():
+def test_new_base_url_unwraps_jaxb_envelope():
     resp = {
-        "pictures": {
-            "picture": [
-                {"link": [{"rel": "XXL", "href": "https://x/1.jpg"}]}
-            ]
+        "{http://.../picture/v1}picture": {
+            "value": {
+                "link": [
+                    {"rel": "thumbnail", "href": "https://img/AB/uuid?AccessKeyId=x&jwt=y"},
+                    {"rel": "XXL", "href": "https://img/AB/uuid?rule=$_57.JPG"},
+                ]
+            }
         }
     }
-    assert pictures.extract_uploaded_links(resp) == [("XXL", "https://x/1.jpg")]
+    assert pictures.new_base_url(resp) == "https://img/AB/uuid"
 
 
-def test_extract_uploaded_links_single_object_at_sign_keys():
-    resp = {"picture": {"link": {"@rel": "L", "@href": "https://x/2.jpg"}}}
-    assert pictures.extract_uploaded_links(resp) == [("L", "https://x/2.jpg")]
+class _FakeClient:
+    """Captures uploads and returns a JAXB-style response with a new base URL."""
+
+    def __init__(self):
+        self.uploads = []
+
+    def upload_picture(self, filename, data):
+        n = len(self.uploads)
+        self.uploads.append((filename, data))
+        return {
+            "{ns}picture": {
+                "value": {"link": [{"rel": "XXL", "href": f"https://img/new{n}?rule=$_57.JPG"}]}
+            }
+        }
 
 
-def test_build_pictures_element_structure():
-    el = pictures.build_pictures_element(
-        [
-            [("teaser", "https://x/t.jpg"), ("XXL", "https://x/big.jpg")],
-            [("XXL", "https://y/big.jpg")],
-        ]
-    )
-    assert el.tag == qn("pic", "pictures")
-    pic_children = el.findall(qn("pic", "picture"))
-    assert len(pic_children) == 2
-    first_links = pic_children[0].findall(qn("pic", "link"))
-    assert [lk.get("href") for lk in first_links] == [
-        "https://x/t.jpg",
-        "https://x/big.jpg",
-    ]
+def test_rehost_pictures_clones_with_new_base(monkeypatch, sample_xml):
+    monkeypatch.setattr(pictures, "download", lambda url, session=None: b"bytes")
+    client = _FakeClient()
+    out = pictures.rehost_pictures(client, sample_xml)
+
+    pics = out.findall(qn("pic", "picture"))
+    assert len(pics) == 2  # fixture has two pictures
+    assert len(client.uploads) == 2  # each downloaded + uploaded
+
+    # First picture's links keep their ?rule suffixes but point at the new base.
+    first = [lk.get("href") for lk in pics[0].findall(qn("pic", "link"))]
+    assert all(h.startswith("https://img/new0") for h in first)
+    assert any(h.endswith("?rule=$_59.JPG") for h in first)  # original suffix kept

@@ -3,14 +3,14 @@
 The user requires that images are physically re-hosted on each repost rather
 than reusing the original ad's CDN URLs, so the repost flow is:
 
-    source ad XML  -->  picture URLs  -->  download bytes
-                   -->  POST /pictures.json  -->  new picture links
-                   -->  rebuilt <pic:pictures> element for the new ad
+    source ad XML  -->  per <pic:picture>: pick largest link, download bytes
+                   -->  POST /api/pictures.json  -->  new image (new UUID)
+                   -->  clone the source <pic:picture>, swapping the image base
+                        URL to the freshly-uploaded one
 
-The exact JSON shape returned by ``/pictures.json`` and the ``<pic:link>``
-``rel`` values are not crisply documented publicly; the extractors below are
-written defensively and the README explains how to confirm them against a real
-ad.
+Cloning the source picture element (rather than rebuilding it) keeps the exact
+``rel`` / ``rule`` link structure the server itself produces, so the create
+payload looks identical to a real stored ad — only the image identity changes.
 """
 
 from __future__ import annotations
@@ -21,36 +21,48 @@ import requests
 
 from .namespaces import qn
 
-# Preferred image size, largest first. Kleinanzeigen serves several "rules"
-# (sizes) per picture; we download the biggest available so the re-upload keeps
-# full quality.
-_RULE_PREFERENCE = ("XXL", "XL", "L", "ruleXXL", "ruleXL", "ruleL", "teaser")
+# Preferred source link to download, by ``rel``, largest first. ``canonicalUrl``
+# is skipped (it's a "$_{imageId}" template, not a real image).
+_REL_PREFERENCE = ("extraLarge", "XXL", "large", "teaser", "thumbnail")
+
+
+def _pictures_element(ad_xml: str) -> ET.Element | None:
+    root = ET.fromstring(ad_xml)
+    for child in root:
+        if child.tag == qn("pic", "pictures"):
+            return child
+    return None
+
+
+def _links(picture: ET.Element) -> list[tuple[str, str]]:
+    """Return (rel, href) pairs for a <pic:picture>, skipping template URLs."""
+    out = []
+    for link in picture.findall(qn("pic", "link")):
+        href = link.get("href", "")
+        if href and "{" not in href:  # skip canonicalUrl template
+            out.append((link.get("rel", ""), href))
+    return out
+
+
+def _best_download_url(links: list[tuple[str, str]]) -> str | None:
+    by_rel = {rel: href for rel, href in links}
+    for rel in _REL_PREFERENCE:
+        if rel in by_rel:
+            return by_rel[rel]
+    return next((href for _, href in links), None)
 
 
 def extract_picture_urls(ad_xml: str) -> list[str]:
     """Return one best (largest) download URL per picture in the ad XML."""
-    root = ET.fromstring(ad_xml)
-    urls: list[str] = []
-    for picture in root.iter(qn("pic", "picture")):
-        links = picture.findall(qn("pic", "link"))
-        url = _pick_best_link(
-            [(lk.get("rel", ""), lk.get("href", "")) for lk in links]
-        )
+    pictures = _pictures_element(ad_xml)
+    if pictures is None:
+        return []
+    urls = []
+    for picture in pictures.findall(qn("pic", "picture")):
+        url = _best_download_url(_links(picture))
         if url:
             urls.append(url)
     return urls
-
-
-def _pick_best_link(links: list[tuple[str, str]]) -> str | None:
-    """Choose the largest-resolution href from (rel, href) pairs."""
-    by_rel = {rel: href for rel, href in links if href}
-    if not by_rel:
-        return None
-    for rule in _RULE_PREFERENCE:
-        if rule in by_rel:
-            return by_rel[rule]
-    # Fall back to the first link we were given.
-    return next(iter(by_rel.values()))
 
 
 def download(url: str, session: requests.Session | None = None) -> bytes:
@@ -61,55 +73,50 @@ def download(url: str, session: requests.Session | None = None) -> bytes:
     return resp.content
 
 
-def extract_uploaded_links(upload_json: dict) -> list[tuple[str, str]]:
-    """Pull (rel, href) link pairs out of a /pictures.json upload response.
+def new_base_url(upload_json: dict) -> str:
+    """Extract the new image's base URL (no query) from a /pictures.json reply.
 
-    Tolerant of the response being either a single picture object or a list
-    wrapped under ``pictures`` -> ``picture``.
+    The response is a JAXB envelope: {"{ns}picture": {"value": {"link": [...]}}}.
+    Every link shares the same base URL (the new image UUID); we take the first.
     """
-    picture = upload_json.get("pictures", upload_json).get("picture", upload_json)
-    if isinstance(picture, list):
-        picture = picture[0] if picture else {}
-    raw_links = picture.get("link", [])
-    if isinstance(raw_links, dict):
-        raw_links = [raw_links]
-    pairs: list[tuple[str, str]] = []
-    for link in raw_links:
-        href = link.get("href") or link.get("@href")
-        rel = link.get("rel") or link.get("@rel") or ""
+    picture = next(iter(upload_json.values()))
+    value = picture.get("value", picture) if isinstance(picture, dict) else {}
+    for link in value.get("link", []):
+        href = link.get("href")
         if href:
-            pairs.append((rel, href))
-    return pairs
-
-
-def build_pictures_element(uploaded: list[list[tuple[str, str]]]) -> ET.Element:
-    """Build a fresh <pic:pictures> element from re-uploaded picture links.
-
-    ``uploaded`` is a list (one entry per picture) of (rel, href) link pairs.
-    """
-    pictures = ET.Element(qn("pic", "pictures"))
-    for links in uploaded:
-        if not links:
-            continue
-        picture = ET.SubElement(pictures, qn("pic", "picture"))
-        for rel, href in links:
-            link = ET.SubElement(picture, qn("pic", "link"))
-            if rel:
-                link.set("rel", rel)
-            link.set("href", href)
-    return pictures
+            return href.split("?", 1)[0]
+    raise ValueError(f"no picture link in upload response: {upload_json!r}")
 
 
 def rehost_pictures(
     client, ad_xml: str, session: requests.Session | None = None
 ) -> ET.Element:
-    """Download every image in ``ad_xml`` and re-upload it.
+    """Download every image in ``ad_xml``, re-upload it, and return a fresh
+    <pic:pictures> element referencing the new copies."""
+    new_pictures = ET.Element(qn("pic", "pictures"))
+    source = _pictures_element(ad_xml)
+    if source is None:
+        return new_pictures
 
-    Returns a ready-to-splice <pic:pictures> element referencing the new copies.
-    """
-    uploaded: list[list[tuple[str, str]]] = []
-    for index, url in enumerate(extract_picture_urls(ad_xml)):
-        data = download(url, session=session)
+    for index, picture in enumerate(source.findall(qn("pic", "picture"))):
+        links = picture.findall(qn("pic", "link"))
+        download_url = _best_download_url(_links(picture))
+        if not download_url:
+            continue
+        data = download(download_url, session=session)
         resp = client.upload_picture(f"image_{index}.jpg", data)
-        uploaded.append(extract_uploaded_links(resp))
-    return build_pictures_element(uploaded)
+        base = new_base_url(resp)
+
+        # Clone the source picture, swapping each link's image base URL.
+        new_picture = ET.SubElement(new_pictures, qn("pic", "picture"))
+        for link in links:
+            href = link.get("href")
+            if not href:
+                continue
+            suffix = href.split("?", 1)[1] if "?" in href else ""
+            new_link = ET.SubElement(new_picture, qn("pic", "link"))
+            rel = link.get("rel")
+            if rel:
+                new_link.set("rel", rel)
+            new_link.set("href", base + ("?" + suffix if suffix else ""))
+    return new_pictures

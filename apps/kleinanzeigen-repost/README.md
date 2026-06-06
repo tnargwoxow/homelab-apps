@@ -1,139 +1,158 @@
 # kleinanzeigen-repost
 
-A small Python CLI that takes one existing [Kleinanzeigen](https://www.kleinanzeigen.de)
-listing and re-publishes it as a fresh duplicate ad — the classic "repost to
-jump back to the top of the search results" workflow.
+A small Python CLI that takes one of **your own** existing
+[Kleinanzeigen](https://www.kleinanzeigen.de) listings and re-publishes it as a
+fresh duplicate ad — the classic "repost to jump back to the top of the search
+results" workflow. It downloads the source ad's photos and re-uploads them, so
+the new ad is a genuine fresh listing.
 
-It does this by talking to the **same internal REST API the official
-Kleinanzeigen Android/iOS apps use** (the eBay Classifieds Group "Capi"). There
-is no official public documentation anymore, but the API is fully
-reverse-engineered. The request flow here is a faithful port of
-[`tejado/ebk-client`](https://github.com/tejado/ebk-client) (see also
-[this gist](https://gist.github.com/BastelPichi/43e441f166fcd6a4c76f875dcbb91d5c)).
+It talks to the same internal REST API the official Kleinanzeigen Android app
+uses (`api.kleinanzeigen.de`).
 
-> ⚠️ Automated reposting is against Kleinanzeigen's terms of service and they
-> rate-limit / fingerprint clients. This is a personal tool — one repost per
-> invocation, no built-in loop. Use it sparingly and at your own risk.
+> ⚠️ Automated reposting is against Kleinanzeigen's terms of service. This is a
+> personal tool — one repost per invocation, no loops. Use sparingly.
 
-## How the API works
+## How auth works (the important part)
 
-- **Host:** `https://api.ebay-kleinanzeigen.de/api`
-- **Partner auth (hardcoded in the app):** `Authorization: Basic …` plus the
-  `X-EBAYK-APP`, `X-ECG-USER-VERSION`, `X-ECG-USER-AGENT` and `User-Agent`
-  headers. These belong to the app itself, not to you; the known values are the
-  defaults in `client.py`, overridable via env vars if they ever rotate.
-- **User login:** `GET /users/login` with
-  `X-ECG-Authorization-User: email="…",password="<base64(sha1(pw))>"` → the
-  session token comes back in the **`X-EBAYK-TOKEN` response header**. Every
-  later call sends `…token="<token>"` instead.
-- **Read an ad:** `GET /ads/{id}` (XML).
-- **Upload an image:** `POST /pictures.json` (multipart) → picture links.
-- **Create an ad:** `POST /users/{email}/ads.json`, `Content-Type: application/xml`.
-- **Delete an ad:** `DELETE /users/{email}/ads/{id}`.
+The modern Kleinanzeigen app authenticates with **Auth0 OAuth2** (white-labelled
+at `login.kleinanzeigen.de`), and the interactive login is protected by **Akamai
+Bot Manager** — so you cannot script the login itself (it detects non-genuine
+clients and returns a misleading *"IP-Bereich vorübergehend gesperrt"* 403).
+
+The way around it: the app requests the `offline_access` scope, so it gets a
+**long-lived refresh token**. We capture that refresh token **once** (see
+[Re-capturing the refresh token](#re-capturing-the-refresh-token)), and from then
+on the tool mints short-lived access tokens itself:
+
+```
+POST https://login.kleinanzeigen.de/oauth/token
+  {"client_id": "<app client id>", "refresh_token": "<yours>", "grant_type": "refresh_token"}
+→ { access_token: <1h JWT>, ... }
+```
+
+That token endpoint is **not** bot-gated and works from plain Python. The refresh
+token is **non-rotating**, so the same one keeps working indefinitely — until you
+log out of the app or Auth0 enforces an absolute expiry.
+
+The data API then accepts the access token via:
+
+```
+Authorization: Basic base64(android:TaR60pEttY)        # static partner credential
+X-ECG-Authorization-User: email=<you>,access=<access-jwt>
+```
 
 ### Repost flow
 
-1. `GET /ads/{id}` → the source ad's full XML.
-2. Strip server-managed fields (id, dates, status, …).
-3. **Download every source image and re-upload it** via `POST /pictures.json`
-   (the originals' CDN URLs are not reused), then splice the new picture links
-   into the ad XML.
-4. `POST /users/{email}/ads.json` → the new ad.
+1. `POST /oauth/token` → fresh access token (user id + email decoded from the JWT).
+2. `GET /api/users/<userId>/ads/<adId>` (Accept: application/xml) → the source ad XML.
+3. Strip server-managed fields (id, dates, status, badges, displayoptions, …).
+4. **Download every photo and re-upload it** via `POST /api/pictures.json`, then
+   splice the new picture links into the XML.
+5. `POST /api/users/<userId>/ads.json` → the new ad.
 
-## Install
+## Setup
 
 ```bash
 cd apps/kleinanzeigen-repost
 python3 -m venv .venv && . .venv/bin/activate
 pip install -e ".[dev]"
-cp .env.example .env   # then fill in KA_EMAIL / KA_PASSWORD
+cp .env.example .env      # then set KA_REFRESH_TOKEN (see below)
 ```
+
+`.env`:
+
+| Variable           | Required | Meaning                                            |
+|--------------------|----------|----------------------------------------------------|
+| `KA_REFRESH_TOKEN` | yes      | long-lived Auth0 refresh token captured from the app |
+| `KA_CLIENT_ID`     | no       | app's Auth0 client id (sensible default baked in)  |
+| `KA_EMAIL`         | no       | fallback; normally auto-derived from the token     |
+| `KA_USER_ID`       | no       | fallback; normally auto-derived from the token     |
 
 ## Usage
 
 ```bash
-# Repost by ad id or by full listing URL:
-ka-repost 2961234567
-ka-repost "https://www.kleinanzeigen.de/s-anzeige/holztisch/2961234567-217-1234"
+# Non-destructive: mint token, fetch ad, verify photos download, print the XML.
+ka-repost 3420459890 --dry-run
+ka-repost "https://www.kleinanzeigen.de/s-anzeige/.../3420459890-88-3405" --dry-run
 
-# Non-destructive check: logs in, fetches the ad, verifies its images are
-# downloadable, prints the XML. Uploads nothing and creates nothing.
-ka-repost 2961234567 --dry-run
+# Real repost (downloads + re-uploads photos, creates a new ad):
+ka-repost 3420459890
 
-# Repost and remove the old listing afterwards:
-ka-repost 2961234567 --delete-original
+# Repost and remove the old listing:
+ka-repost 3420459890 --delete-original
 ```
-
-Credentials are read from environment variables or a local `.env`:
-
-| Variable      | Required | Meaning                         |
-|---------------|----------|---------------------------------|
-| `KA_EMAIL`    | yes      | your Kleinanzeigen account email |
-| `KA_PASSWORD` | yes      | your account password            |
-| `KA_APP_*`    | no       | partner-app overrides (see `.env.example`) |
 
 ## Tests
 
 ```bash
-python -m pytest
+python -m pytest      # offline: id/URL parsing, XML sanitizing, picture rebuild
 ```
 
-The tests are fully offline (id/URL parsing, XML sanitizing, picture-element
-rebuilding) and run against `tests/fixtures/sample_ad.xml` — no network or
-credentials needed.
+## Re-capturing the refresh token
 
-## Known unknowns / first live run
+If the refresh token ever stops working (you logged out of the app, changed your
+password, or Auth0 hit an absolute expiry — symptom: `token refresh failed` from
+the tool), capture a new one. This needs an Android phone with USB debugging and
+a Mac with `adb`, `node`/`npx`, and `mitmproxy` (`brew install mitmproxy`). The
+catch is the app pins TLS, so we run a pinning-patched build once.
 
-The exact JSON shape returned by `POST /pictures.json` and the precise set of
-read-only fields rejected on create are the parts **not** crisply documented
-publicly. The code handles the documented/expected shapes defensively, but on
-your first live run:
+```bash
+# 1. Pull the installed app (split APK) off the phone
+adb shell pm path com.ebay.kleinanzeigen          # note the base/split apk paths
+mkdir ka && cd ka
+adb pull <base.apk> ; adb pull <split_config.*.apk>   # all parts
 
-- Use `--dry-run` against an ad you own and inspect the printed XML.
-- If `create_ad` returns an error, the server's XML error message is surfaced
-  verbatim — add any offending element's local-name to `READ_ONLY_LOCALNAMES`
-  in `repost.py`.
-- If the rebuilt `<pic:pictures>` block looks wrong, compare it against a real
-  ad's `GET /ads/{id}` output and adjust `extract_uploaded_links` /
-  `build_pictures_element` in `pictures.py`.
+# 2. Patch out certificate pinning (also makes it trust user CAs), re-sign
+zip -j app.apks base.apk split_config.*.apk
+npx apk-mitm app.apks                              # -> app-patched.apks
 
-## "IP-Bereich vorübergehend gesperrt" (403)
+# 3. Trust mitmproxy's CA on the phone
+mitmdump &                                         # first run generates the CA, then Ctrl-C
+adb push ~/.mitmproxy/mitmproxy-ca-cert.cer /sdcard/Download/mitmproxy-ca.crt
+#   On phone: Settings -> Security -> Install from device storage -> CA certificate -> pick it
 
-This anti-fraud message is **not** about your credentials. Two distinct things
-can trigger it, both found during testing:
+# 4. Install the patched app (clears app data -> you log in fresh)
+adb uninstall com.ebay.kleinanzeigen
+unzip app-patched.apks -d patched
+adb install-multiple patched/base.apk patched/split_config.*.apk
 
-1. **Outdated app version.** The old `X-ECG-USER-AGENT: ebayk-android-app-13.4.2`
-   identifier is blocked outright. The default is now a current-ish version
-   (`ebayk-android-app-100.9.0`); bump `KA_APP_TYPE` / `KA_APP_VERSION` if it
-   ages out again.
-2. **IP-range rate block.** Shared mobile/CGNAT and VPN/datacenter IPs, or just
-   too many requests in a short window, get the whole IP range temporarily
-   banned across all endpoints. The official app keeps working because it reuses
-   a cached session and doesn't hammer the API. Fix: wait ~15-60 min and retry
-   from a residential connection, **or** use `KA_TOKEN` to skip the login call
-   (the `/users/login` endpoint is the most heavily gated).
+# 5. Proxy the phone through mitmproxy over USB (works on cellular too)
+adb reverse tcp:8080 tcp:8080
+adb shell settings put global http_proxy 127.0.0.1:8080
+mitmdump -s capture_oauth.py                       # see snippet below
+```
 
-## Getting a token from your phone (no root)
+Then, on the phone:
 
-`/users/login` is the most aggressively anti-fraud-gated endpoint. If you can
-grab the session token the app already holds, set `KA_TOKEN` and the tool skips
-login entirely. On a non-rooted Android phone, easiest first:
+- **Log in with the proxy OFF first** if Akamai blocks the login page while
+  proxied: `adb shell settings put global http_proxy :0`, complete login + MFA,
+  then turn the proxy back on. (The re-signed app breaks Android App Links, so if
+  the OAuth callback fails with "Anmeldung konnte nicht abgeschlossen werden",
+  enable *Settings → Apps → Kleinanzeigen → Open by default → Open supported
+  links* for `login.kleinanzeigen.de`.)
+- To force the app to use its refresh token (so you can capture it), advance the
+  phone clock ~2 h (*Settings → Date and time → off automatic*) and open the app —
+  the Auth0 SDK will treat the access token as expired and call `/oauth/token`
+  with the refresh token. Reset automatic time afterwards.
 
-- **Try `adb backup`** (works only if the app allows backup):
-  ```bash
-  adb backup -f ka.ab -noapk com.ebay.kleinanzeigen   # confirm on the phone
-  # if the .ab is non-empty, unpack it and look in shared_prefs for the token:
-  ( printf 'FF\x0a' ; tail -c +25 ka.ab | python3 -c "import sys,zlib;sys.stdout.buffer.write(zlib.decompress(sys.stdin.buffer.read()))" ) > ka.tar
-  tar xf ka.tar && grep -rEi 'token|ecg' apps/com.ebay.kleinanzeigen/sp/ 2>/dev/null
-  ```
-  Most modern apps set `allowBackup=false`, so this often produces an empty
-  archive — if so, use the proxy method.
-- **Proxy with a pinning-patched APK** (reliable, still no root): download the
-  Kleinanzeigen APK, run it through [`apk-mitm`](https://github.com/shroudedcode/apk-mitm)
-  to disable certificate pinning, install the patched APK, point the phone's
-  Wi-Fi proxy at [mitmproxy](https://mitmproxy.org) on your computer (install its
-  CA on the phone), open the app, and read the `X-EBAYK-TOKEN` response header /
-  `X-ECG-Authorization-User: …token="…"` request header from the login or any
-  authenticated call.
+`capture_oauth.py` for mitmproxy:
 
-Then put the value in `.env` as `KA_TOKEN=...` (you can drop `KA_PASSWORD`).
+```python
+from mitmproxy import http
+def request(flow: http.HTTPFlow):
+    if flow.request.pretty_host == "login.kleinanzeigen.de" and "/oauth/token" in flow.request.path:
+        print("OAUTH BODY:", flow.request.get_text())   # contains refresh_token
+```
+
+Put the captured `refresh_token` value into `.env` as `KA_REFRESH_TOKEN`. Clean
+up: `adb shell settings put global http_proxy :0`, `adb reverse --remove-all`,
+and you can reinstall the normal app (uninstalling the patched app does **not**
+revoke the refresh token — only logging out does).
+
+## Known unknowns
+
+- The create-ad (`POST /api/users/<id>/ads.json`) and picture-upload
+  (`POST /api/pictures.json`) endpoints are the legacy paths; they're wired up but
+  the modern app may use a different post-ad flow. On the first real repost,
+  watch the error body — the tool surfaces the server's message verbatim. Adjust
+  `READ_ONLY_LOCALNAMES` in `repost.py` if create rejects a field.

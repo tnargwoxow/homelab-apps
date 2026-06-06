@@ -11,6 +11,18 @@
     <ad:start-date-time>2026-05-01T10:00:00.000Z</ad:start-date-time>
     <ad:end-date-time>2026-07-01T10:00:00.000Z</ad:end-date-time>
     <ad:user-id>12345678</ad:user-id>
+    <ad:contact-name>Tester</ad:contact-name>
+    <ad:contact-name-initials>T</ad:contact-name-initials>
+    <ad:seller-account-type>PRIVATE</ad:seller-account-type>
+    <ad:userBadges>
+        <ad:badges name="reliability" level="0" value=""/>
+    </ad:userBadges>
+    <ad:displayoptions>
+        <ad:offer-allowed>true</ad:offer-allowed>
+    </ad:displayoptions>
+    <ad:tracking>
+        <ad:user-account-type>PRIVATE</ad:user-account-type>
+    </ad:tracking>
     <ad:link rel="self" href="https://api.ebay-kleinanzeigen.de/api/ads/2961234567"/>
     <ad:price>
         <types:amount>120</types:amount>
