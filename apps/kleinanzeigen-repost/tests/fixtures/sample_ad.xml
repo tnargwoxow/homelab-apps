@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<ad:ad xmlns:ad="http://www.ebayclassifiedsgroup.com/schema/ad/v1"
+       xmlns:cat="http://www.ebayclassifiedsgroup.com/schema/category/v1"
+       xmlns:loc="http://www.ebayclassifiedsgroup.com/schema/location/v1"
+       xmlns:pic="http://www.ebayclassifiedsgroup.com/schema/picture/v1"
+       xmlns:types="http://www.ebayclassifiedsgroup.com/schema/types/v1"
+       id="2961234567" version="1.32">
+    <ad:title>Schöner Holztisch</ad:title>
+    <ad:description>Massiver Esstisch aus Eiche, kaum benutzt.</ad:description>
+    <ad:ad-status>ACTIVE</ad:ad-status>
+    <ad:start-date-time>2026-05-01T10:00:00.000Z</ad:start-date-time>
+    <ad:end-date-time>2026-07-01T10:00:00.000Z</ad:end-date-time>
+    <ad:user-id>12345678</ad:user-id>
+    <ad:link rel="self" href="https://api.ebay-kleinanzeigen.de/api/ads/2961234567"/>
+    <ad:price>
+        <types:amount>120</types:amount>
+        <types:currency-iso-code>EUR</types:currency-iso-code>
+        <types:price-type>FIXED</types:price-type>
+    </ad:price>
+    <cat:category id="80"/>
+    <loc:locations>
+        <loc:location id="3331"/>
+    </loc:locations>
+    <pic:pictures>
+        <pic:picture>
+            <pic:link rel="teaser" href="https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/aaaa?rule=$_2.JPG"/>
+            <pic:link rel="XL" href="https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/aaaa?rule=$_57.JPG"/>
+            <pic:link rel="XXL" href="https://img.kleinanzeigen.de/api/v1/prod-ads/images/aa/aaaa?rule=$_59.JPG"/>
+        </pic:picture>
+        <pic:picture>
+            <pic:link rel="teaser" href="https://img.kleinanzeigen.de/api/v1/prod-ads/images/bb/bbbb?rule=$_2.JPG"/>
+            <pic:link rel="XXL" href="https://img.kleinanzeigen.de/api/v1/prod-ads/images/bb/bbbb?rule=$_59.JPG"/>
+        </pic:picture>
+    </pic:pictures>
+</ad:ad>
