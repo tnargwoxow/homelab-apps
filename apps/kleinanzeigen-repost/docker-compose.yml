@@ -1,0 +1,10 @@
+services:
+  kleinanzeigen-repost:
+    build: .
+    image: kleinanzeigen-repost
+    container_name: kleinanzeigen-repost
+    ports:
+      - "8090:8090"
+    env_file:
+      - .env          # KA_REFRESH_TOKEN (+ optional KA_EMAIL / KA_USER_ID / KA_CLIENT_ID)
+    restart: unless-stopped

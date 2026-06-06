@@ -93,6 +93,25 @@ ka-repost 3420459890
 ka-repost 3420459890 --delete-original
 ```
 
+## Web UI / Docker
+
+A small Flask app gives you a browser form: paste an ad URL/id, tick **Dry run**
+and/or **Delete original**, hit Duplicate.
+
+```bash
+cp .env.example .env      # set KA_REFRESH_TOKEN
+docker compose up -d --build
+# open http://<host>:8090
+```
+
+Endpoints:
+- `GET /` — the UI
+- `GET /healthz` — health check
+- `POST /api/repost` — JSON `{"ad": "<url|id>", "dry_run": false, "delete_original": false}`
+  → `{ok, mode, ad_id, new_ad_id, ...}` (or `{ok:true, mode:"dry_run", xml}`)
+
+Run it without Docker for local dev: `ka-repost-server` (serves on `PORT`, default 8090).
+
 ## Tests
 
 ```bash

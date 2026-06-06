@@ -7,13 +7,18 @@ name = "kleinanzeigen-repost"
 version = "0.1.0"
 description = "Duplicate (repost) a Kleinanzeigen listing via the internal ECG mobile API"
 requires-python = ">=3.9"
-dependencies = ["requests>=2.28"]
+dependencies = [
+    "requests>=2.28",
+    "flask>=3.0",
+    "gunicorn>=21",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=7"]
 
 [project.scripts]
 ka-repost = "kleinanzeigen_repost.cli:main"
+ka-repost-server = "kleinanzeigen_repost.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
