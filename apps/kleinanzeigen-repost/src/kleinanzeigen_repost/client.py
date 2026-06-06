@@ -27,13 +27,16 @@ import requests
 URL_PREFIX = "https://api.ebay-kleinanzeigen.de/api"
 
 # Hardcoded partner-app constants extracted from the official Android app.
-# Override via env vars if Kleinanzeigen rotates them (see README).
+# The app *version* matters: Kleinanzeigen rejects outdated client identifiers
+# (the old "ebayk-android-app-13.4.2") with a misleading "IP-Bereich gesperrt"
+# 403, so X-ECG-USER-AGENT must track a current-ish app version. Override via
+# env vars if Kleinanzeigen rotates them (see README).
 H_EBAYK_CLIENT_APP = os.environ.get(
     "KA_APP_ID", "13a6dde3-935d-4cd8-9992-db8a8c4b6c0f1456515662229"
 )
-H_EBAYK_CLIENT_VERSION = os.environ.get("KA_APP_VERSION", "13.4.2")
+H_EBAYK_CLIENT_VERSION = os.environ.get("KA_APP_VERSION", "100.9.0")
 H_EBAYK_CLIENT_TYPE = os.environ.get(
-    "KA_APP_TYPE", "ebayk-android-app-13.4.2"
+    "KA_APP_TYPE", "ebayk-android-app-100.9.0"
 )
 H_EBAYK_CLIENT_UA = os.environ.get("KA_APP_UA", "Dalvik/2.2.0")
 H_EBAYK_WENKSE_SESSION_ID = os.environ.get("KA_WENKSE_SESSION_ID", "asd")
@@ -63,17 +66,17 @@ class KleinanzeigenClient:
         password: str,
         app_username: str = APP_USERNAME,
         app_password: str = APP_PASSWORD,
+        token: str | None = None,
     ):
-        if not email or not password:
-            raise ValueError("email and password are required")
+        if not email:
+            raise ValueError("email is required")
+        if not password and not token:
+            raise ValueError("either password or token is required")
 
         self.username = email
 
         app_auth = base64.b64encode(
             f"{app_username}:{app_password}".encode("ascii")
-        ).decode("utf-8")
-        hashed_pw = base64.b64encode(
-            hashlib.sha1(password.encode("ascii")).digest()
         ).decode("utf-8")
 
         self._session = requests.Session()
@@ -83,21 +86,35 @@ class KleinanzeigenClient:
                 "X-ECG-USER-VERSION": H_EBAYK_CLIENT_VERSION,
                 "X-ECG-USER-AGENT": H_EBAYK_CLIENT_TYPE,
                 "Authorization": f"Basic {app_auth}",
-                "X-ECG-Authorization-User": f'email="{email}",password="{hashed_pw}"',
                 "X-EBAYK-WENKSE-SESSION-ID": H_EBAYK_WENKSE_SESSION_ID,
                 "User-Agent": H_EBAYK_CLIENT_UA,
             }
         )
 
+        if token:
+            # Skip the heavily anti-fraud-gated /users/login endpoint and use a
+            # session token captured from the app (see README, KA_TOKEN).
+            self._session.headers["X-ECG-Authorization-User"] = (
+                f'email="{email}",token="{token}"'
+            )
+            return
+
+        hashed_pw = base64.b64encode(
+            hashlib.sha1(password.encode("ascii")).digest()
+        ).decode("utf-8")
+        self._session.headers["X-ECG-Authorization-User"] = (
+            f'email="{email}",password="{hashed_pw}"'
+        )
+
         # Log in: the session token comes back in the X-EBAYK-TOKEN header.
         resp = self._get("/users/login")
-        token = resp.headers.get("X-EBAYK-TOKEN")
-        if not token:
+        new_token = resp.headers.get("X-EBAYK-TOKEN")
+        if not new_token:
             raise KleinanzeigenError(
                 resp.status_code, "login succeeded but no X-EBAYK-TOKEN header returned"
             )
         self._session.headers["X-ECG-Authorization-User"] = (
-            f'email="{email}",token="{token}"'
+            f'email="{email}",token="{new_token}"'
         )
 
     # -- internal HTTP helpers -------------------------------------------------
@@ -105,7 +122,19 @@ class KleinanzeigenClient:
     @staticmethod
     def _check(resp: requests.Response) -> requests.Response:
         if not resp.ok:
-            raise KleinanzeigenError(resp.status_code, resp.text)
+            body = resp.text
+            if resp.status_code == 403 and "gesperrt" in body:
+                body = (
+                    "Kleinanzeigen temporarily blocked this IP range "
+                    '("IP-Bereich vorübergehend gesperrt"). This is an '
+                    "anti-fraud rate block, not a credentials problem. It is "
+                    "common on shared mobile/CGNAT and VPN/datacenter IPs and "
+                    "after many requests in a short window. Wait ~15-60 min and "
+                    "retry from a residential connection, or capture a session "
+                    "token from the app and set KA_TOKEN to skip login. "
+                    f"(raw: {resp.text.strip()[:200]})"
+                )
+            raise KleinanzeigenError(resp.status_code, body)
         return resp
 
     def _get(self, suffix: str) -> requests.Response:

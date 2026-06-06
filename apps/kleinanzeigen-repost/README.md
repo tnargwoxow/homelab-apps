@@ -96,3 +96,44 @@ your first live run:
 - If the rebuilt `<pic:pictures>` block looks wrong, compare it against a real
   ad's `GET /ads/{id}` output and adjust `extract_uploaded_links` /
   `build_pictures_element` in `pictures.py`.
+
+## "IP-Bereich vorübergehend gesperrt" (403)
+
+This anti-fraud message is **not** about your credentials. Two distinct things
+can trigger it, both found during testing:
+
+1. **Outdated app version.** The old `X-ECG-USER-AGENT: ebayk-android-app-13.4.2`
+   identifier is blocked outright. The default is now a current-ish version
+   (`ebayk-android-app-100.9.0`); bump `KA_APP_TYPE` / `KA_APP_VERSION` if it
+   ages out again.
+2. **IP-range rate block.** Shared mobile/CGNAT and VPN/datacenter IPs, or just
+   too many requests in a short window, get the whole IP range temporarily
+   banned across all endpoints. The official app keeps working because it reuses
+   a cached session and doesn't hammer the API. Fix: wait ~15-60 min and retry
+   from a residential connection, **or** use `KA_TOKEN` to skip the login call
+   (the `/users/login` endpoint is the most heavily gated).
+
+## Getting a token from your phone (no root)
+
+`/users/login` is the most aggressively anti-fraud-gated endpoint. If you can
+grab the session token the app already holds, set `KA_TOKEN` and the tool skips
+login entirely. On a non-rooted Android phone, easiest first:
+
+- **Try `adb backup`** (works only if the app allows backup):
+  ```bash
+  adb backup -f ka.ab -noapk com.ebay.kleinanzeigen   # confirm on the phone
+  # if the .ab is non-empty, unpack it and look in shared_prefs for the token:
+  ( printf 'FF\x0a' ; tail -c +25 ka.ab | python3 -c "import sys,zlib;sys.stdout.buffer.write(zlib.decompress(sys.stdin.buffer.read()))" ) > ka.tar
+  tar xf ka.tar && grep -rEi 'token|ecg' apps/com.ebay.kleinanzeigen/sp/ 2>/dev/null
+  ```
+  Most modern apps set `allowBackup=false`, so this often produces an empty
+  archive — if so, use the proxy method.
+- **Proxy with a pinning-patched APK** (reliable, still no root): download the
+  Kleinanzeigen APK, run it through [`apk-mitm`](https://github.com/shroudedcode/apk-mitm)
+  to disable certificate pinning, install the patched APK, point the phone's
+  Wi-Fi proxy at [mitmproxy](https://mitmproxy.org) on your computer (install its
+  CA on the phone), open the app, and read the `X-EBAYK-TOKEN` response header /
+  `X-ECG-Authorization-User: …token="…"` request header from the login or any
+  authenticated call.
+
+Then put the value in `.env` as `KA_TOKEN=...` (you can drop `KA_PASSWORD`).
