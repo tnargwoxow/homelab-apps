@@ -73,50 +73,46 @@ def download(url: str, session: requests.Session | None = None) -> bytes:
     return resp.content
 
 
-def new_base_url(upload_json: dict) -> str:
-    """Extract the new image's base URL (no query) from a /pictures.json reply.
+def uploaded_link(upload_json: dict, rel: str = "thumbnail") -> str:
+    """Return one (signed) link href from a /pictures.json upload reply.
 
     The response is a JAXB envelope: {"{ns}picture": {"value": {"link": [...]}}}.
-    Every link shares the same base URL (the new image UUID); we take the first.
+    The create payload references a freshly-uploaded picture by the *signed*
+    upload URL (the app uses the ``thumbnail`` rel), so we return that href.
     """
     picture = next(iter(upload_json.values()))
     value = picture.get("value", picture) if isinstance(picture, dict) else {}
-    for link in value.get("link", []):
-        href = link.get("href")
-        if href:
-            return href.split("?", 1)[0]
-    raise ValueError(f"no picture link in upload response: {upload_json!r}")
+    links = value.get("link", [])
+    by_rel = {lk.get("rel"): lk.get("href") for lk in links if lk.get("href")}
+    href = by_rel.get(rel) or next(iter(by_rel.values()), None)
+    if not href:
+        raise ValueError(f"no picture link in upload response: {upload_json!r}")
+    return href
 
 
 def rehost_pictures(
     client, ad_xml: str, session: requests.Session | None = None
 ) -> ET.Element:
     """Download every image in ``ad_xml``, re-upload it, and return a fresh
-    <pic:pictures> element referencing the new copies."""
+    <pic:pictures> element referencing the new copies.
+
+    Each new picture is a single ``<pic:link rel="thumbnail" href="...">`` whose
+    href is the signed upload URL — mirroring exactly what the app sends on
+    create.
+    """
     new_pictures = ET.Element(qn("pic", "pictures"))
     source = _pictures_element(ad_xml)
     if source is None:
         return new_pictures
 
     for index, picture in enumerate(source.findall(qn("pic", "picture"))):
-        links = picture.findall(qn("pic", "link"))
         download_url = _best_download_url(_links(picture))
         if not download_url:
             continue
         data = download(download_url, session=session)
         resp = client.upload_picture(f"image_{index}.jpg", data)
-        base = new_base_url(resp)
-
-        # Clone the source picture, swapping each link's image base URL.
         new_picture = ET.SubElement(new_pictures, qn("pic", "picture"))
-        for link in links:
-            href = link.get("href")
-            if not href:
-                continue
-            suffix = href.split("?", 1)[1] if "?" in href else ""
-            new_link = ET.SubElement(new_picture, qn("pic", "link"))
-            rel = link.get("rel")
-            if rel:
-                new_link.set("rel", rel)
-            new_link.set("href", base + ("?" + suffix if suffix else ""))
+        link = ET.SubElement(new_picture, qn("pic", "link"))
+        link.set("rel", "thumbnail")
+        link.set("href", uploaded_link(resp))
     return new_pictures

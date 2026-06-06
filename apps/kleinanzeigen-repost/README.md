@@ -45,10 +45,21 @@ X-ECG-Authorization-User: email=<you>,access=<access-jwt>
 
 1. `POST /oauth/token` → fresh access token (user id + email decoded from the JWT).
 2. `GET /api/users/<userId>/ads/<adId>` (Accept: application/xml) → the source ad XML.
-3. Strip server-managed fields (id, dates, status, badges, displayoptions, …).
-4. **Download every photo and re-upload it** via `POST /api/pictures.json`, then
-   splice the new picture links into the XML.
-5. `POST /api/users/<userId>/ads.json` → the new ad.
+3. **Download every photo and re-upload it** via `POST /api/pictures.json` (each
+   returns a signed image URL).
+4. Rebuild the ad XML in the exact create schema: only the fields the app sends,
+   in the app's element order, with `id="0"`, free text HTML-decoded, attributes
+   slimmed to `name`+`value`, and each picture a single signed `thumbnail` link.
+5. `POST /api/users/<userId>/ads.json` with **`Content-Type: application/json`**
+   (the body is XML — `application/xml` is rejected with an opaque 500) → new ad.
+
+The create payload is fiddly because the GET representation differs from what
+POST accepts. Pitfalls that each produced an error, now handled:
+- `application/xml` content-type → opaque 500 (must be `application/json`).
+- Wrong element order → opaque 500 (ECG validates an ordered XSD sequence).
+- Enriched category/location/attributes from GET → rejected (slim to ids/values).
+- HTML-encoded title/description from GET → length errors / literal `&#x2F;`
+  (must be `html.unescape`d).
 
 ## Setup
 
@@ -149,10 +160,10 @@ up: `adb shell settings put global http_proxy :0`, `adb reverse --remove-all`,
 and you can reinstall the normal app (uninstalling the patched app does **not**
 revoke the refresh token — only logging out does).
 
-## Known unknowns
+## Status
 
-- The create-ad (`POST /api/users/<id>/ads.json`) and picture-upload
-  (`POST /api/pictures.json`) endpoints are the legacy paths; they're wired up but
-  the modern app may use a different post-ad flow. On the first real repost,
-  watch the error body — the tool surfaces the server's message verbatim. Adjust
-  `READ_ONLY_LOCALNAMES` in `repost.py` if create rejects a field.
+End-to-end verified: fetch → re-upload all photos → create. A reposted ad goes
+live (ACTIVE) with all its pictures. If Kleinanzeigen tweaks the create schema
+later, the tool surfaces the server's field error verbatim (e.g.
+`title: max length 65`) so it's clear what to adjust in `CREATE_ORDER` /
+`sanitize_ad_xml` in `repost.py`.

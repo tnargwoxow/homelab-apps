@@ -54,7 +54,7 @@ def test_sanitize_strips_readonly_fields(sample_xml):
     out = sanitize_ad_xml(sample_xml)
     root = ET.fromstring(out)
 
-    assert "id" not in root.attrib
+    assert root.attrib.get("id") == "0"   # new ads post with id="0"
     assert "version" not in root.attrib
 
     locals_present = {local_name(c.tag) for c in root}
@@ -94,22 +94,22 @@ def test_extract_picture_urls_picks_largest(sample_xml):
     assert all("rule=$_59.JPG" in u for u in urls)  # the XXL variant
 
 
-def test_new_base_url_unwraps_jaxb_envelope():
+def test_uploaded_link_prefers_thumbnail():
     resp = {
         "{http://.../picture/v1}picture": {
             "value": {
                 "link": [
-                    {"rel": "thumbnail", "href": "https://img/AB/uuid?AccessKeyId=x&jwt=y"},
                     {"rel": "XXL", "href": "https://img/AB/uuid?rule=$_57.JPG"},
+                    {"rel": "thumbnail", "href": "https://img/AB/uuid?AccessKeyId=x&jwt=y"},
                 ]
             }
         }
     }
-    assert pictures.new_base_url(resp) == "https://img/AB/uuid"
+    assert pictures.uploaded_link(resp) == "https://img/AB/uuid?AccessKeyId=x&jwt=y"
 
 
 class _FakeClient:
-    """Captures uploads and returns a JAXB-style response with a new base URL."""
+    """Captures uploads and returns a JAXB-style upload response."""
 
     def __init__(self):
         self.uploads = []
@@ -119,12 +119,14 @@ class _FakeClient:
         self.uploads.append((filename, data))
         return {
             "{ns}picture": {
-                "value": {"link": [{"rel": "XXL", "href": f"https://img/new{n}?rule=$_57.JPG"}]}
+                "value": {"link": [
+                    {"rel": "thumbnail", "href": f"https://img/new{n}?AccessKeyId=k&jwt=j"},
+                ]}
             }
         }
 
 
-def test_rehost_pictures_clones_with_new_base(monkeypatch, sample_xml):
+def test_rehost_pictures_uses_signed_thumbnail(monkeypatch, sample_xml):
     monkeypatch.setattr(pictures, "download", lambda url, session=None: b"bytes")
     client = _FakeClient()
     out = pictures.rehost_pictures(client, sample_xml)
@@ -133,7 +135,8 @@ def test_rehost_pictures_clones_with_new_base(monkeypatch, sample_xml):
     assert len(pics) == 2  # fixture has two pictures
     assert len(client.uploads) == 2  # each downloaded + uploaded
 
-    # First picture's links keep their ?rule suffixes but point at the new base.
-    first = [lk.get("href") for lk in pics[0].findall(qn("pic", "link"))]
-    assert all(h.startswith("https://img/new0") for h in first)
-    assert any(h.endswith("?rule=$_59.JPG") for h in first)  # original suffix kept
+    # Each new picture is a single rel="thumbnail" link to the signed upload URL.
+    links = pics[0].findall(qn("pic", "link"))
+    assert len(links) == 1
+    assert links[0].get("rel") == "thumbnail"
+    assert links[0].get("href") == "https://img/new0?AccessKeyId=k&jwt=j"

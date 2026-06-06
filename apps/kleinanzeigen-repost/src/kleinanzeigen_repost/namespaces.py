@@ -16,6 +16,9 @@ NS = {
     "pic": "http://www.ebayclassifiedsgroup.com/schema/picture/v1",
     "user": "http://www.ebayclassifiedsgroup.com/schema/user/v1",
     "types": "http://www.ebayclassifiedsgroup.com/schema/types/v1",
+    "medias": "http://www.ebayclassifiedsgroup.com/schema/media/v1",
+    "shipping": "http://www.ebayclassifiedsgroup.com/schema/shipping/v1",
+    "payment": "http://www.ebayclassifiedsgroup.com/schema/payment/v1",
 }
 
 for _prefix, _uri in NS.items():

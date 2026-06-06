@@ -138,12 +138,14 @@ class KleinanzeigenClient:
     def _get(self, suffix: str, **kwargs) -> requests.Response:
         return self._check(self._session.get(URL_PREFIX + suffix, **kwargs))
 
-    def _post_xml(self, suffix: str, xml: str) -> requests.Response:
+    def _post_ad_xml(self, suffix: str, xml: str) -> requests.Response:
+        # The app posts the ad XML body with a JSON content-type (verified by
+        # interception); application/xml is rejected with an opaque 500.
         return self._check(
             self._session.post(
                 URL_PREFIX + suffix,
                 data=xml.encode("utf-8"),
-                headers={"Content-Type": "application/xml"},
+                headers={"Content-Type": "application/json; charset=utf-8"},
             )
         )
 
@@ -171,7 +173,7 @@ class KleinanzeigenClient:
 
     def create_ad(self, xml: str) -> requests.Response:
         """Create (post) a new ad from a full ad XML body."""
-        return self._post_xml(f"/users/{self.user_id}/ads.json", xml)
+        return self._post_ad_xml(f"/users/{self.user_id}/ads.json", xml)
 
     def delete_ad(self, ad_id: str) -> bool:
         return (

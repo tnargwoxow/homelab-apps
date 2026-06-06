@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import copy
+import html
 import re
 import xml.etree.ElementTree as ET
 
@@ -65,32 +67,71 @@ def parse_ad_id(arg: str) -> str:
     raise ValueError(f"could not find an ad id in {arg!r}")
 
 
-def sanitize_ad_xml(ad_xml: str, pictures: ET.Element | None = None) -> str:
-    """Strip server-managed fields and optionally replace the pictures block.
+# The exact element order the app posts on create. ECG validates against an
+# ordered XSD sequence, so the wrong order is rejected with an opaque 500. Each
+# entry is (prefix, local-name); the build pulls the value from the source ad,
+# except the synthesised ones noted below.
+CREATE_ORDER = (
+    ("ad", "title"),
+    ("ad", "description"),
+    ("ad", "contact-name"),
+    ("ad", "email"),            # synthesised from the account email
+    ("ad", "poster-type"),
+    ("ad", "ad-type"),
+    ("cat", "category"),
+    ("loc", "locations"),
+    ("ad", "ad-address"),
+    ("ad", "price"),
+    ("medias", "medias"),       # synthesised empty
+    ("pic", "pictures"),        # replaced with the re-uploaded block
+    ("attr", "attributes"),
+    ("shipping", "shipping-options"),  # synthesised empty
+    ("payment", "buy-now"),     # synthesised, selected="false"
+)
 
-    Returns a serialized XML string ready to POST to the create endpoint.
+
+def sanitize_ad_xml(
+    ad_xml: str, pictures: ET.Element | None = None, email: str | None = None
+) -> str:
+    """Build a create-ready ad XML from the source ad's GET representation.
+
+    Emits only the fields the app sends on create, in the app's exact order,
+    slimmed to the create schema (bare category/location/attribute identifiers).
     """
-    root = ET.fromstring(ad_xml)
+    source = ET.fromstring(ad_xml)
+    _slim_for_create(source)
+    by_tag = {child.tag: child for child in source}
 
-    # Drop id/version attributes from the root ad element.
-    for attr in ("id", "version"):
-        root.attrib.pop(attr, None)
+    out = ET.Element(qn("ad", "ad"))
+    out.set("id", "0")  # new ads post with id="0"
+    if source.get("locale"):
+        out.set("locale", source.get("locale"))
 
-    # Remove read-only direct children.
-    for child in list(root):
-        if local_name(child.tag) in READ_ONLY_LOCALNAMES:
-            root.remove(child)
+    for prefix, name in CREATE_ORDER:
+        tag = qn(prefix, name)
+        if name == "email":
+            if email:
+                ET.SubElement(out, tag).text = email
+        elif name == "pictures":
+            if pictures is not None:
+                out.append(pictures)
+            elif tag in by_tag:
+                out.append(copy.deepcopy(by_tag[tag]))
+        elif name in ("medias", "shipping-options"):
+            ET.SubElement(out, tag)  # empty container
+        elif name == "buy-now":
+            ET.SubElement(out, tag, {"selected": "false"})
+        elif tag in by_tag:
+            out.append(copy.deepcopy(by_tag[tag]))
 
-    _slim_for_create(root)
+    # The GET representation HTML-encodes free text (e.g. "/" -> "&#x2F;"), which
+    # inflates length and would post literally. Decode it back to plain text;
+    # ElementTree re-applies the correct minimal XML escaping on serialize.
+    for el in out:
+        if local_name(el.tag) in ("title", "description", "contact-name") and el.text:
+            el.text = html.unescape(el.text)
 
-    # Replace the pictures block with the freshly re-uploaded one.
-    if pictures is not None:
-        for child in list(root):
-            if child.tag == qn("pic", "pictures"):
-                root.remove(child)
-        root.append(pictures)
-
-    return ET.tostring(root, encoding="unicode")
+    return ET.tostring(out, encoding="unicode")
 
 
 def _slim_for_create(root: ET.Element) -> None:
@@ -112,9 +153,10 @@ def _slim_for_create(root: ET.Element) -> None:
                     location.remove(sub)
         elif name == "attributes":
             for attribute in child.findall(qn("attr", "attribute")):
-                # Keep name + type + the value(s); drop display-only attrs.
+                # The app sends only name + value(s); drop type and all the
+                # display-only attrs.
                 for key in list(attribute.attrib):
-                    if key not in ("name", "type"):
+                    if key != "name":
                         del attribute.attrib[key]
                 for value in attribute.findall(qn("attr", "range-value")):
                     if not (value.text and value.text.strip()):
@@ -139,10 +181,12 @@ def repost(client, ad_id: str, *, dry_run: bool = False) -> str | None:
         # a real run re-uploads them and swaps in the new links.
         for url in pictures_mod.extract_picture_urls(source_xml):
             pictures_mod.download(url)
-        return sanitize_ad_xml(source_xml)
+        return sanitize_ad_xml(source_xml, email=getattr(client, "email", None))
 
     new_pictures = pictures_mod.rehost_pictures(client, source_xml)
-    new_xml = sanitize_ad_xml(source_xml, pictures=new_pictures)
+    new_xml = sanitize_ad_xml(
+        source_xml, pictures=new_pictures, email=getattr(client, "email", None)
+    )
     resp = client.create_ad(new_xml)
     return _new_ad_id(resp)
 
