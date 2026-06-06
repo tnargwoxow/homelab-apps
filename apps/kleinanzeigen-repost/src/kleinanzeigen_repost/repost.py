@@ -91,12 +91,16 @@ CREATE_ORDER = (
 
 
 def sanitize_ad_xml(
-    ad_xml: str, pictures: ET.Element | None = None, email: str | None = None
+    ad_xml: str,
+    pictures: ET.Element | None = None,
+    email: str | None = None,
+    edits: dict | None = None,
 ) -> str:
     """Build a create-ready ad XML from the source ad's GET representation.
 
     Emits only the fields the app sends on create, in the app's exact order,
     slimmed to the create schema (bare category/location/attribute identifiers).
+    ``edits`` (if given) overrides field values (title, description, price, …).
     """
     source = ET.fromstring(ad_xml)
     _slim_for_create(source)
@@ -130,6 +134,11 @@ def sanitize_ad_xml(
     for el in out:
         if local_name(el.tag) in ("title", "description", "contact-name") and el.text:
             el.text = html.unescape(el.text)
+
+    # User edits override the source values (applied last so they win).
+    if edits:
+        from .fields import apply_edits
+        apply_edits(out, edits)
 
     return ET.tostring(out, encoding="unicode")
 
@@ -165,14 +174,21 @@ def _slim_for_create(root: ET.Element) -> None:
                     value.attrib.pop("localized-label", None)
 
 
-def repost(client, ad_id: str, *, dry_run: bool = False) -> str | None:
+def repost(
+    client, ad_id: str, *, dry_run: bool = False, edits: dict | None = None
+) -> str | None:
     """Fetch ad ``ad_id``, rehost its images, and create a duplicate.
 
+    ``edits`` may carry field overrides (title, description, price, attributes,
+    …) plus an optional ``pictures`` list of source picture indices to keep/order.
     Returns the new ad id (or the sanitized XML when ``dry_run`` is set).
     """
     # Imported here so unit tests for parsing/sanitizing don't require requests.
     from . import pictures as pictures_mod
 
+    edits = edits or {}
+    keep = edits.get("pictures")
+    email = getattr(client, "email", None)
     source_xml = client.get_ad_xml(ad_id)
 
     if dry_run:
@@ -181,11 +197,11 @@ def repost(client, ad_id: str, *, dry_run: bool = False) -> str | None:
         # a real run re-uploads them and swaps in the new links.
         for url in pictures_mod.extract_picture_urls(source_xml):
             pictures_mod.download(url)
-        return sanitize_ad_xml(source_xml, email=getattr(client, "email", None))
+        return sanitize_ad_xml(source_xml, email=email, edits=edits)
 
-    new_pictures = pictures_mod.rehost_pictures(client, source_xml)
+    new_pictures = pictures_mod.rehost_pictures(client, source_xml, keep_indices=keep)
     new_xml = sanitize_ad_xml(
-        source_xml, pictures=new_pictures, email=getattr(client, "email", None)
+        source_xml, pictures=new_pictures, email=email, edits=edits
     )
     resp = client.create_ad(new_xml)
     return _new_ad_id(resp)

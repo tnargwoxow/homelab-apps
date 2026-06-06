@@ -140,3 +140,13 @@ def test_rehost_pictures_uses_signed_thumbnail(monkeypatch, sample_xml):
     assert len(links) == 1
     assert links[0].get("rel") == "thumbnail"
     assert links[0].get("href") == "https://img/new0?AccessKeyId=k&jwt=j"
+
+
+def test_rehost_pictures_keep_indices_selects_and_orders(monkeypatch, sample_xml):
+    monkeypatch.setattr(pictures, "download", lambda url, session=None: b"bytes")
+    client = _FakeClient()
+    # Fixture has 2 pictures (indices 0,1); keep only #1, first.
+    out = pictures.rehost_pictures(client, sample_xml, keep_indices=[1])
+    assert len(out.findall(qn("pic", "picture"))) == 1
+    assert len(client.uploads) == 1
+    assert client.uploads[0][0] == "image_1.jpg"  # uploaded the source #1 image

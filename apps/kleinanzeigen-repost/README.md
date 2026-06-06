@@ -104,11 +104,24 @@ docker compose up -d --build
 # open http://<host>:8090
 ```
 
+### Edit before reposting
+
+The UI is two-step: **Load** an ad, then edit it before duplicating. Editable:
+title, description (multi-line — `<br/>` ↔ newlines), price (amount + a type
+dropdown), contact name, ZIP, the **category attributes** (rendered as dropdowns
+of their allowed values, fetched from the category metadata), and the **photos**
+(remove / reorder). Untouched fields keep their original values, so a plain
+load → Duplicate is identical to a no-edit repost.
+
 Endpoints:
 - `GET /` — the UI
 - `GET /healthz` — health check
-- `POST /api/repost` — JSON `{"ad": "<url|id>", "dry_run": false, "delete_original": false}`
-  → `{ok, mode, ad_id, new_ad_id, ...}` (or `{ok:true, mode:"dry_run", xml}`)
+- `POST /api/load` — JSON `{"ad": "<url|id>"}` → `{ok, ad_id, fields}` (read-only;
+  `fields` has the labelled, editable structure incl. attribute option lists)
+- `POST /api/repost` — JSON `{"ad", "dry_run", "delete_original", "edits"}`
+  → `{ok, mode, ad_id, new_ad_id, ...}` (or `{ok:true, mode:"dry_run", xml}`).
+  `edits` is optional: `{title, description, price_amount, price_type,
+  contact_name, zip_code, attributes:{name:value}, pictures:[keptSourceIndices]}`.
 
 Run it without Docker for local dev: `ka-repost-server` (serves on `PORT`, default 8090).
 

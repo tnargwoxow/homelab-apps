@@ -25,13 +25,16 @@
     </ad:tracking>
     <ad:link rel="self" href="https://api.ebay-kleinanzeigen.de/api/ads/2961234567"/>
     <ad:price>
+        <types:currency-iso-code><types:value localized-label="€">EUR</types:value></types:currency-iso-code>
         <types:amount>120</types:amount>
-        <types:currency-iso-code>EUR</types:currency-iso-code>
-        <types:price-type>FIXED</types:price-type>
+        <types:price-type><types:value>FIXED</types:value></types:price-type>
     </ad:price>
-    <cat:category id="80"/>
+    <ad:ad-address>
+        <types:zip-code>10115</types:zip-code>
+    </ad:ad-address>
+    <cat:category id="80"><cat:localized-name>Sonstiges</cat:localized-name></cat:category>
     <loc:locations>
-        <loc:location id="3331"/>
+        <loc:location id="3331"><loc:localized-name>10115 Mitte</loc:localized-name></loc:location>
     </loc:locations>
     <pic:pictures>
         <pic:picture>

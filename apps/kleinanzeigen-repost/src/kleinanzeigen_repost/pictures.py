@@ -91,22 +91,31 @@ def uploaded_link(upload_json: dict, rel: str = "thumbnail") -> str:
 
 
 def rehost_pictures(
-    client, ad_xml: str, session: requests.Session | None = None
+    client,
+    ad_xml: str,
+    session: requests.Session | None = None,
+    keep_indices: list[int] | None = None,
 ) -> ET.Element:
     """Download every image in ``ad_xml``, re-upload it, and return a fresh
     <pic:pictures> element referencing the new copies.
 
     Each new picture is a single ``<pic:link rel="thumbnail" href="...">`` whose
     href is the signed upload URL — mirroring exactly what the app sends on
-    create.
+    create. ``keep_indices`` (if given) selects and orders which source pictures
+    to include, by their original 0-based index.
     """
     new_pictures = ET.Element(qn("pic", "pictures"))
     source = _pictures_element(ad_xml)
     if source is None:
         return new_pictures
 
-    for index, picture in enumerate(source.findall(qn("pic", "picture"))):
-        download_url = _best_download_url(_links(picture))
+    source_pics = source.findall(qn("pic", "picture"))
+    order = keep_indices if keep_indices is not None else range(len(source_pics))
+
+    for index in order:
+        if not 0 <= index < len(source_pics):
+            continue
+        download_url = _best_download_url(_links(source_pics[index]))
         if not download_url:
             continue
         data = download(download_url, session=session)

@@ -167,6 +167,10 @@ class KleinanzeigenClient:
             headers={"Accept": "application/xml"},
         ).text
 
+    def get_category_metadata(self, category_id: str) -> dict:
+        """Return a category's attribute/price metadata (allowed values, labels)."""
+        return self._get(f"/ads/metadata/{category_id}.json").json()
+
     def upload_picture(self, filename: str, data: bytes) -> dict:
         """Upload one image, returning the parsed JSON picture descriptor."""
         return self._post_file("/pictures.json", filename, data).json()
