@@ -39,8 +39,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="download images and print the ad XML that would be posted, "
-        "without creating anything",
+        help="log in, fetch the ad, verify its images are downloadable, and "
+        "print the ad XML — without uploading images or creating anything",
     )
     args = parser.parse_args(argv)
 

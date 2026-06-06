@@ -81,12 +81,17 @@ def repost(client, ad_id: str, *, dry_run: bool = False) -> str | None:
     from . import pictures as pictures_mod
 
     source_xml = client.get_ad_xml(ad_id)
-    new_pictures = pictures_mod.rehost_pictures(client, source_xml)
-    new_xml = sanitize_ad_xml(source_xml, pictures=new_pictures)
 
     if dry_run:
-        return new_xml
+        # Non-destructive: verify every image is downloadable but do NOT upload
+        # anything or create an ad. The printed XML keeps the source pictures;
+        # a real run re-uploads them and swaps in the new links.
+        for url in pictures_mod.extract_picture_urls(source_xml):
+            pictures_mod.download(url)
+        return sanitize_ad_xml(source_xml)
 
+    new_pictures = pictures_mod.rehost_pictures(client, source_xml)
+    new_xml = sanitize_ad_xml(source_xml, pictures=new_pictures)
     resp = client.create_ad(new_xml)
     return _new_ad_id(resp)
 

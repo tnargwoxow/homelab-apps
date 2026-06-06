@@ -56,7 +56,8 @@ cp .env.example .env   # then fill in KA_EMAIL / KA_PASSWORD
 ka-repost 2961234567
 ka-repost "https://www.kleinanzeigen.de/s-anzeige/holztisch/2961234567-217-1234"
 
-# See exactly what would be posted (downloads images, posts nothing):
+# Non-destructive check: logs in, fetches the ad, verifies its images are
+# downloadable, prints the XML. Uploads nothing and creates nothing.
 ka-repost 2961234567 --dry-run
 
 # Repost and remove the old listing afterwards:
